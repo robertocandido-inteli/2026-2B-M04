@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lab 1 · Pisca-LED</title>
+<meta name="description" content="Laboratório 1 — pisca-LED no Wokwi, com uso de IA guiado pelos 5C.">
+<link rel="icon" href="../../aulas/aula-1/assets/img/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../aulas/aula-1/css/style.css">
+<link rel="stylesheet" href="lab.css">
+</head>
+<body class="lab">
+
+<header class="topbar">
+  <img class="logo" src="../../aulas/aula-1/assets/img/logo.png" alt="Inteli">
+  <div class="deck-title"><b>Lab 1</b> · Pisca-LED</div>
+  <span class="spacer"></span>
+  <a class="btn ghost" href="../../aulas/aula-1/index.html">← Aula 1</a>
+</header>
+
+<main class="doc">
+
+  <!-- ============ CAPA ============ -->
+  <section class="hero">
+    <p class="kicker">Atividade prática · Aula 1</p>
+    <h1>Lab 1 — Pisca-LED</h1>
+    <p class="lead">Você vai montar no simulador <b>Wokwi</b> um circuito com Arduino UNO, um resistor e um LED. O LED funciona como <b>LED de status</b>: um pulso de 200 ms aceso a cada 2 s, indicando que o dispositivo está ligado e funcionando.</p>
+    <div class="meta">
+      <span class="pill on">Wokwi · Arduino UNO</span>
+      <span class="pill warn">IA permitida, seguindo os 5C</span>
+      <span class="pill">Entrega: formulário + repositório do grupo</span>
+    </div>
+    <nav class="toc" aria-label="Sumário">
+      <a href="#ia">Regras de IA (5C)</a>
+      <a href="#circuito">Circuito</a>
+      <a href="#codigo">Código</a>
+      <a href="#const">Por que const?</a>
+      <a href="#roteiro">Roteiro e entrega</a>
+    </nav>
+  </section>
+
+  <!-- ============ 5C ============ -->
+  <section id="ia" class="block">
+    <h2>Usando IA neste lab: os 5C</h2>
+    <p class="muted">Você pode usar IA (por exemplo, o Gemini), mas o objetivo é aprender, não terceirizar. Cada etapa tem uma evidência mínima, que você registra no formulário no fim desta página.</p>
+    <div class="table-wrap">
+      <table class="c5">
+        <thead><tr><th>Etapa</th><th>Aluno</th><th>Professor</th><th>Evidência mínima</th></tr></thead>
+        <tbody>
+          <tr><th>Contextualizar</th><td>Interpreta o problema, explicita requisitos e critérios de sucesso</td><td>Entrega briefing, define limites de IA e testes de aceitação</td><td>Mapa do problema, arquitetura inicial</td></tr>
+          <tr><th>Consultar</th><td>Formula dúvida delimitada, pede hipóteses (não solução pronta)</td><td>Modela boas perguntas, aponta documentação primária</td><td>Registro da dúvida, contexto e fonte</td></tr>
+          <tr><th>Confrontar</th><td>Compara resposta da IA com documentação, testes, medições</td><td>Questiona pressupostos, pede contraprovas</td><td>Fonte primária + teste que confirma/rejeita</td></tr>
+          <tr><th>Construir</th><td>Adapta, integra, refatora, justifica decisões</td><td>Faz checkpoints, não entrega solução integral</td><td>Artefato versionado + justificativa técnica</td></tr>
+          <tr><th>Comprovar</th><td>Demonstra, explica, resolve variação sem IA</td><td>Aplica rubrica, argui individualmente</td><td>Demonstração + explicação + tarefa de transferência</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ CIRCUITO ============ -->
+  <section id="circuito" class="block">
+    <h2>O circuito</h2>
+    <p>O LED fica no pino <b>D8</b> com um resistor de <b>220 Ω</b> em série, que limita a corrente. O cátodo do LED vai ao <b>GND</b>.</p>
+    <div class="grid-2 even">
+      <div class="sim">
+        <div class="sim-head"><span class="sim-title">Esquema elétrico · simulação do pisca</span></div>
+        <svg id="schematic" class="stage" viewBox="0 0 520 300" role="img" aria-label="Esquema: LED com resistor de 220 ohms no pino D8 do Arduino UNO"></svg>
+        <p class="hint" id="schemHint"></p>
+      </div>
+      <div class="stack">
+        <h3>Componentes</h3>
+        <table class="parts">
+          <tr><th>Ref.</th><th>Componente</th><th>Ligação</th></tr>
+          <tr><td>U1</td><td>Arduino UNO</td><td>—</td></tr>
+          <tr><td>R1</td><td>Resistor 220 Ω</td><td>D8 → ânodo do LED</td></tr>
+          <tr><td>LED1</td><td>LED vermelho</td><td>cátodo → GND</td></tr>
+        </table>
+        <div class="note">No Wokwi, o LED acende ou apaga, mas o brilho não muda com o valor do resistor, e o simulador não mede a corrente no UNO. Por isso, a corrente se confere por cálculo e pelas animações da aula.</div>
+      </div>
+    </div>
+
+    <h3>Montando no Wokwi</h3>
+    <ol class="steps">
+      <li>Abra <a href="https://wokwi.com/projects/new/arduino-uno" target="_blank" rel="noopener">wokwi.com/projects/new/arduino-uno</a> e entre com sua conta para conseguir salvar o projeto.</li>
+      <li>Na aba <span class="mono">diagram.json</span>, apague o conteúdo e cole o diagrama abaixo. O circuito aparece montado; arraste as peças se quiser organizar os fios.</li>
+      <li>Na aba <span class="mono">sketch.ino</span>, cole o código e clique em ▶ para simular.</li>
+      <li>Salve o projeto (<span class="mono">Save</span>) e guarde o link: ele faz parte da entrega.</li>
+    </ol>
+    <div class="code-box">
+      <div class="code-head"><span class="mono">diagram.json</span><div class="btn-row"><button type="button" class="btn ghost" data-copy="diagram">Copiar</button><button type="button" class="btn ghost" data-download="diagram" data-name="diagram.json">Baixar</button></div></div>
+<pre class="code-pre" id="diagram">{
+  "version": 1,
+  "author": "Lab 1 - Inteli",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-arduino-uno", "id": "uno", "top": 0, "left": 0, "attrs": {} },
+    { "type": "wokwi-resistor", "id": "r1", "top": -72, "left": 235, "rotate": 90, "attrs": { "value": "220" } },
+    { "type": "wokwi-led", "id": "led1", "top": -150, "left": 263, "attrs": { "color": "red" } }
+  ],
+  "connections": [
+    [ "uno:8", "r1:2", "green", [] ],
+    [ "r1:1", "led1:A", "green", [] ],
+    [ "led1:C", "uno:GND.1", "black", [] ]
+  ],
+  "dependencies": {}
+}</pre>
+    </div>
+  </section>
+
+  <!-- ============ CÓDIGO ============ -->
+  <section id="codigo" class="block">
+    <p class="kicker">Código</p>
+    <h2>Pisca-LED: LED de status</h2>
+    <p>O LED dá um pulso de <b>200 ms aceso</b> a cada <b>2 s</b>: aceso por 200 ms e apagado por 1800 ms.</p>
+    <div class="code-box">
+      <div class="code-head"><span class="mono">sketch.ino</span><div class="btn-row"><button type="button" class="btn ghost" data-copy="codeB">Copiar</button><button type="button" class="btn ghost" data-download="codeB" data-name="sketch.ino">Baixar</button></div></div>
+<pre class="code-pre" id="codeB"><span class="tok-c">// Lab 1 — LED de status: pulso de 200 ms a cada 2 s</span>
+
+<span class="tok-k">const int</span> PINO_LED = <span class="tok-n">8</span>;   <span class="tok-c">// LED com resistor de 220 Ω em série</span>
+
+<span class="tok-c">// Tempos em milissegundos; o ciclo total é TEMPO_ACESO + TEMPO_APAGADO</span>
+<span class="tok-k">const unsigned long</span> TEMPO_ACESO   = <span class="tok-n">200</span>;
+<span class="tok-k">const unsigned long</span> TEMPO_APAGADO = <span class="tok-n">1800</span>;
+
+<span class="tok-k">void</span> <span class="tok-f">setup</span>() {
+  <span class="tok-f">pinMode</span>(PINO_LED, <span class="tok-k">OUTPUT</span>);   <span class="tok-c">// roda uma vez, ao ligar</span>
+}
+
+<span class="tok-k">void</span> <span class="tok-f">loop</span>() {                  <span class="tok-c">// repete para sempre</span>
+  <span class="tok-f">digitalWrite</span>(PINO_LED, <span class="tok-k">HIGH</span>);
+  <span class="tok-f">delay</span>(TEMPO_ACESO);
+  <span class="tok-f">digitalWrite</span>(PINO_LED, <span class="tok-k">LOW</span>);
+  <span class="tok-f">delay</span>(TEMPO_APAGADO);
+}</pre>
+    </div>
+    <div class="note">Teste de aceitação: cronometre 10 ciclos no simulador e divida por 10. O ciclo deve ficar entre <b>1,9 s</b> e <b>2,1 s</b>.</div>
+  </section>
+
+<!-- ============ CONST ============ -->
+  <section id="const" class="block">
+    <h2>Por que <span class="mono">const</span>?</h2>
+    <div class="cards three">
+      <div class="card mint"><h3>Um lugar só</h3><p>O número do pino aparece uma vez. Para mudar o LED de pino, você altera só a declaração, e não cada <span class="mono">8</span> espalhado pelo código.</p></div>
+      <div class="card orange"><h3>Nome com significado</h3><p><span class="mono">PINO_LED</span> e <span class="mono">TEMPO_ACESO</span> dizem o que o valor representa. Um <span class="mono">8</span> ou <span class="mono">1800</span> soltos no código não dizem.</p></div>
+      <div class="card blue"><h3>Proteção</h3><p>O compilador recusa qualquer tentativa de alterar uma constante. Tempos usam <span class="mono">unsigned long</span>, o mesmo tipo que o Arduino usa para milissegundos.</p></div>
+    </div>
+  </section>
+
+  <!-- ============ ROTEIRO + FORMULÁRIO ============ -->
+  <section id="roteiro" class="block">
+    <h2>Roteiro 5C e entrega</h2>
+    <p>Siga as etapas na ordem e registre cada uma no formulário. Suas respostas ficam salvas como rascunho neste navegador até você enviar. Use <b>Baixar PROCESSO.md</b> para gerar o arquivo do repositório do grupo com o mesmo conteúdo.</p>
+
+    <div class="note warn" id="formStatus" hidden></div>
+
+    <form id="labForm" novalidate>
+      <fieldset class="step">
+        <legend>Identificação</legend>
+        <div class="fields two">
+          <label>Nome completo<input name="nome" required autocomplete="name"></label>
+          <label>E-mail institucional<input name="email" type="email" required autocomplete="email"></label>
+          <label>Turma<input name="turma" required placeholder="ex.: T26"></label>
+          <label>Grupo<input name="grupo" required placeholder="ex.: Grupo 3"></label>
+        </div>
+      </fieldset>
+
+      <fieldset class="step">
+        <legend><span class="n">1</span> Contextualizar</legend>
+        <p class="step-desc">Antes de mexer no código, escreva com suas palavras:</p>
+        <ul class="bullets">
+          <li><b>o objetivo:</b> o LED de status indica que o dispositivo está ligado e funcionando;</li>
+          <li><b>o comportamento esperado:</b> pulso de 200 ms aceso a cada 2 s;</li>
+          <li><b>o critério de aceitação:</b> o ciclo cronometrado fica entre 1,9 s e 2,1 s, e a corrente calculada fica abaixo de 20 mA, a corrente recomendada pelo datasheet;</li>
+          <li><b>o que você vai delegar à IA</b> e o que pretende fazer sozinho.</li>
+        </ul>
+        <div class="fields">
+          <label>Objetivo<textarea name="ctx_objetivo" required rows="2"></textarea></label>
+          <label>Comportamento esperado<textarea name="ctx_comportamento" required rows="2"></textarea></label>
+          <label>Critério de aceitação<textarea name="ctx_criterio" required rows="2"></textarea></label>
+          <label>O que delego à IA e o que faço sozinho<textarea name="ctx_delegacao" required rows="2"></textarea></label>
+        </div>
+      </fieldset>
+
+      <fieldset class="step">
+        <legend><span class="n">2</span> Consultar</legend>
+        <p class="step-desc">Faça à IA uma pergunta <b>delimitada</b> sobre um ponto que você não domina. Uma pergunta delimitada pede explicação ou hipótese, não o código pronto. Exemplos:</p>
+        <ul class="bullets blue">
+          <li>“Que valor de resistor limita a corrente de um LED vermelho ligado a 5 V, e de onde sai essa conta?”</li>
+          <li>“O que o delay() faz com o resto do programa enquanto espera?”</li>
+          <li>“Por que o setup roda uma vez só e o loop repete?”</li>
+        </ul>
+        <div class="fields">
+          <label>Ferramenta de IA usada
+            <select name="con_ferramenta" required>
+              <option value="">Selecione…</option><option>Gemini</option><option>ChatGPT</option><option>Claude</option><option>Copilot</option><option>Outra</option>
+            </select></label>
+          <label>Pergunta, exatamente como você fez<textarea name="con_pergunta" required rows="2"></textarea></label>
+          <label>Resposta da IA, resumida<textarea name="con_resposta" required rows="3"></textarea></label>
+        </div>
+      </fieldset>
+
+      <fieldset class="step">
+        <legend><span class="n">3</span> Confrontar</legend>
+        <p class="step-desc">Escolha uma afirmação técnica da resposta e confira contra uma fonte primária:</p>
+        <ul class="bullets orange">
+          <li>a lei de Ohm: I = (5 V − 2 V) ÷ R, com a queda de cerca de 2 V do LED vermelho;</li>
+          <li>o datasheet do LED: corrente recomendada de 20 mA, com máximo absoluto um pouco acima, em geral entre 25 e 30 mA;</li>
+          <li>as animações da aula: na <a href="https://robertocandido-inteli.github.io/2026-2B-M04/aulas/aula-1/index.html#4" target="_blank" rel="noopener">Lei de Ohm (slide 4)</a>, ajuste V = 3 V e teste R = 100 Ω, 220 Ω e 1 kΩ; na <a href="https://robertocandido-inteli.github.io/2026-2B-M04/aulas/aula-1/index.html#9" target="_blank" rel="noopener">calculadora do LED (slide 9)</a>, compare com o seu cálculo.</li>
+        </ul>
+        <p class="step-desc">Diga se a afirmação se confirmou, precisou de ajuste ou estava errada, citando o trecho da fonte. Se você rejeitou ou corrigiu uma sugestão, ela vira o seu ADR (registro de decisão).</p>
+        <div class="fields">
+          <label>Afirmação da IA que você conferiu<textarea name="conf_afirmacao" required rows="2"></textarea></label>
+          <label>Fonte primária usada
+            <select name="conf_fonte" required>
+              <option value="">Selecione…</option><option>Lei de Ohm (cálculo)</option><option>Datasheet do LED</option><option>Animação da aula</option><option>Documentação oficial do Arduino</option><option>Outra</option>
+            </select></label>
+          <label>Trecho da fonte ou cálculo que confirma/rejeita<textarea name="conf_trecho" required rows="2"></textarea></label>
+          <label>Veredito
+            <select name="conf_veredito" required>
+              <option value="">Selecione…</option><option>Confirmada</option><option>Precisou de ajuste</option><option>Estava errada</option>
+            </select></label>
+          <label>ADR: decisão tomada e justificativa <span class="opt-tag">opcional, obrigatório se ajustou/rejeitou</span><textarea name="conf_adr" rows="2"></textarea></label>
+        </div>
+      </fieldset>
+
+      <fieldset class="step">
+        <legend><span class="n">4</span> Construir</legend>
+        <p class="step-desc">Rode o projeto, confirme o comportamento declarado em Contextualizar e versione no repositório do grupo: <span class="mono">sketch.ino</span>, <span class="mono">diagram.json</span>, o link do projeto salvo no Wokwi, uma captura de tela do simulador rodando e o <span class="mono">PROCESSO.md</span>.</p>
+        <div class="fields two">
+          <label>Link do projeto no Wokwi<input name="cons_wokwi" type="url" required placeholder="https://wokwi.com/projects/…"></label>
+          <label>Link do repositório ou commit<input name="cons_repo" type="url" required placeholder="https://github.com/…"></label>
+          <label>Ciclo medido no simulador (s)<input name="cons_ciclo" type="number" step="0.01" min="0" required placeholder="ex.: 2,02"></label>
+          <label>Corrente calculada no LED com 220 Ω (mA)<input name="cons_corrente220" type="number" step="0.1" min="0" required></label>
+        </div>
+        <div class="checks">
+          <label class="check"><input type="checkbox" name="cons_funciona" value="sim"> Projeto funcionando no simulador: pulso de 200 ms a cada 2 s</label>
+        </div>
+      </fieldset>
+
+      <fieldset class="step">
+        <legend><span class="n">5</span> Comprovar <span class="no-ai">sem IA</span></legend>
+        <p class="step-desc">Responda sozinho, sem consultar a IA. Na correção, o professor pode pedir que você explique qualquer resposta.</p>
+
+        <div class="q-block">
+          <p class="q-title">5.1 Qual corrente passa pelo LED com um resistor de 330 Ω (fonte de 5 V, queda de 2 V no LED)? Depois, confira na <a href="../../aulas/aula-1/index.html#4" target="_blank" rel="noopener">animação da Lei de Ohm</a> com V = 3 V.</p>
+          <div class="fields two">
+            <label>Corrente (mA)<input name="comp_i330" type="number" step="0.01" min="0" required></label>
+            <label>Cálculo<input name="comp_i330_calc" required placeholder="I = (5 − 2) / 330 = …"></label>
+          </div>
+        </div>
+
+        <div class="q-block">
+          <p class="q-title">5.2 Por que um resistor de 0 Ω queima o LED na placa real?</p>
+          <div class="radios">
+            <label><input type="radio" name="comp_zero" value="a" required> Porque 5 V é tensão demais para qualquer LED.</label>
+            <label><input type="radio" name="comp_zero" value="b"> Porque nada limita a corrente, que passa muito do máximo suportado pelo LED.</label>
+            <label><input type="radio" name="comp_zero" value="c"> Porque o resistor de 0 Ω inverte a polaridade do LED.</label>
+            <label><input type="radio" name="comp_zero" value="d"> Porque a corrente fica baixa demais e o LED superaquece.</label>
+          </div>
+          <label class="full">Explique com suas palavras<input name="comp_zero_just" required></label>
+        </div>
+
+        <div class="q-block">
+          <p class="q-title">5.3 O que muda no código se o LED for para o pino 12?</p>
+          <div class="radios">
+            <label><input type="radio" name="comp_pino12" value="a" required> É preciso trocar cada ocorrência de 8 no código.</label>
+            <label><input type="radio" name="comp_pino12" value="b"> Nada: os pinos 8 e 12 são equivalentes.</label>
+            <label><input type="radio" name="comp_pino12" value="c"> Só o valor de <span class="mono">PINO_LED</span> passa a ser 12 (e o fio vai para o pino 12).</label>
+            <label><input type="radio" name="comp_pino12" value="d"> É preciso trocar o <span class="mono">pinMode</span> para <span class="mono">INPUT</span>.</label>
+          </div>
+        </div>
+
+        <div class="q-block">
+          <p class="q-title">5.4 Tarefa de transferência: o LED de status agora deve dar um pulso de 500 ms a cada 3 s. Qual deve ser o valor de <span class="mono">TEMPO_APAGADO</span>?</p>
+          <div class="fields two"><label>TEMPO_APAGADO (ms)<input name="comp_transfer" type="number" step="1" min="0" required></label></div>
+        </div>
+
+        <label class="check decl"><input type="checkbox" name="decl_sem_ia" value="sim" required> Declaro que respondi a etapa Comprovar sem consultar IA.</label>
+      </fieldset>
+
+      <div class="submit-row">
+        <button type="submit" class="btn" id="btnSend">Enviar respostas</button>
+        <button type="button" class="btn blue" id="btnMd">Baixar PROCESSO.md</button>
+        <button type="button" class="btn ghost" id="btnClear">Limpar rascunho</button>
+      </div>
+      <div class="receipt" id="receipt" hidden></div>
+    </form>
+  </section>
+
+  <footer class="doc-foot">Lab 1 · Introdução à Eletrônica e IoT · Professor Doutor Roberto Cândido</footer>
+</main>
+
+<script src="config.js"></script>
+<script src="lab.js"></script>
+</body>
+</html>
