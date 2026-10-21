@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lab 2 · Debounce</title>
+<meta name="description" content="Laboratório 2 — debounce de botão por software (millis) e por hardware (filtro RC), com uso de IA guiado pelos 5C.">
+<link rel="icon" href="logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="lab.css">
+</head>
+<body class="lab">
+
+<header class="topbar">
+  <img class="logo" src="logo.png" alt="Inteli">
+  <div class="deck-title"><b>Lab 2</b> · Debounce por software e por hardware</div>
+  <span class="spacer"></span>
+  <a class="btn ghost" href="../aula-2/index.html#18">← Aula 2</a>
+</header>
+
+<main class="doc">
+
+  <!-- ============ CAPA ============ -->
+  <section class="hero">
+    <p class="kicker">Atividade prática · Aula 2</p>
+    <h1>Lab 2 — Debounce</h1>
+    <p class="lead">Um botão mecânico não muda de estado de forma limpa: os contatos <b>trepidam</b> por alguns milissegundos e um único aperto vira várias bordas. Você vai medir o problema na <b>bancada</b>, resolvê-lo <b>por software</b> com <span class="mono">millis()</span> e <b>por hardware</b> com um filtro RC.</p>
+    <div class="meta">
+      <span class="pill on">Bancada · Arduino UNO</span>
+      <span class="pill info">Filtro RC · dimensionamento + montagem</span>
+      <span class="pill warn">IA permitida, seguindo os 5C</span>
+      <span class="pill">Entrega: formulário</span>
+    </div>
+    <nav class="toc" aria-label="Sumário">
+      <a href="#ia">Regras de IA (5C)</a>
+      <a href="#problema">O problema</a>
+      <a href="#circuito">Circuito</a>
+      <a href="#parteA">A · Sem debounce</a>
+      <a href="#parteB">B · Software</a>
+      <a href="#parteC">C · Hardware RC</a>
+      <a href="#roteiro">Roteiro e entrega</a>
+    </nav>
+  </section>
+
+  <!-- ============ 5C ============ -->
+  <section id="ia" class="block">
+    <h2>Usando IA neste lab: os 5C</h2>
+    <p class="muted">Você pode usar IA (por exemplo, o Gemini), mas o objetivo é aprender, não terceirizar. Cada etapa tem uma evidência mínima, que você registra no formulário no fim desta página.</p>
+    <div class="table-wrap">
+      <table class="c5">
+        <thead><tr><th>Etapa</th><th>Aluno</th><th>Professor</th><th>Evidência mínima</th></tr></thead>
+        <tbody>
+          <tr><th>Contextualizar</th><td>Interpreta o problema, explicita requisitos e critérios de sucesso</td><td>Entrega briefing, define limites de IA e testes de aceitação</td><td>Mapa do problema, arquitetura inicial</td></tr>
+          <tr><th>Consultar</th><td>Formula dúvida delimitada, pede hipóteses (não solução pronta)</td><td>Modela boas perguntas, aponta documentação primária</td><td>Registro da dúvida, contexto e fonte</td></tr>
+          <tr><th>Confrontar</th><td>Compara resposta da IA com documentação, testes, medições</td><td>Questiona pressupostos, pede contraprovas</td><td>Fonte primária + teste que confirma/rejeita</td></tr>
+          <tr><th>Construir</th><td>Adapta, integra, refatora, justifica decisões</td><td>Faz checkpoints, não entrega solução integral</td><td>Artefato versionado + justificativa técnica</td></tr>
+          <tr><th>Comprovar</th><td>Demonstra, explica, resolve variação sem IA</td><td>Aplica rubrica, argui individualmente</td><td>Demonstração + explicação + tarefa de transferência</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ PROBLEMA ============ -->
+  <section id="problema" class="block">
+    <h2>O problema: trepidação (bounce)</h2>
+    <div class="grid-2 even">
+      <div class="stack">
+        <p>Quando as lâminas de metal do botão se tocam, elas batem e quicam algumas vezes antes de assentar. Para nós, isso dura um instante; para o Arduino, que lê o pino milhões de vezes por segundo, são <b>várias transições HIGH ↔ LOW</b>.</p>
+        <p>Se o programa conta cada borda de descida como um aperto, um único toque pode virar 2, 3 ou 5 contagens, e um LED que deveria alternar pode terminar no mesmo estado.</p>
+      </div>
+      <div class="cards" style="grid-template-columns:1fr 1fr">
+        <div class="card mint"><h3>Software</h3><p>O programa só aceita uma mudança se o sinal ficar <b>parado</b> por uma janela de tempo (ex.: 50 ms). Custo zero, mas ocupa lógica no código.</p></div>
+        <div class="card blue"><h3>Hardware</h3><p>Um filtro <b>RC</b> suaviza o sinal antes de chegar ao pino. O código fica simples, mas exige componentes e dimensionamento.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ CIRCUITO ============ -->
+  <section id="circuito" class="block">
+    <h2>O circuito na bancada</h2>
+    <p>O botão liga o pino <b>D2</b> ao <b>GND</b> e usa o pull-up interno (<span class="mono">INPUT_PULLUP</span>): solto, o pino lê <b>HIGH</b>; apertado, lê <b>LOW</b>. O LED no <b>D8</b>, com resistor de <b>220 Ω</b>, alterna a cada aperto aceito, e o Monitor Serial mostra a contagem.</p>
+    <div class="grid-2 even">
+      <div class="sim">
+        <div class="sim-head"><span class="sim-title">Esquema elétrico</span></div>
+        <svg id="schematic" class="stage" viewBox="0 0 520 300" role="img" aria-label="Esquema: botão entre D2 e GND com pull-up interno; LED com resistor de 220 ohms no D8"></svg>
+      </div>
+      <div class="stack">
+        <h3>Componentes</h3>
+        <table class="parts">
+          <tr><th>Ref.</th><th>Componente</th><th>Ligação</th></tr>
+          <tr><td>U1</td><td>Arduino UNO + cabo USB</td><td>—</td></tr>
+          <tr><td>SW1</td><td>Botão (push button)</td><td>D2 ↔ GND</td></tr>
+          <tr><td>R1</td><td>Resistor 220 Ω</td><td>D8 → ânodo do LED</td></tr>
+          <tr><td>LED1</td><td>LED vermelho</td><td>cátodo → GND</td></tr>
+          <tr><td>R2</td><td>Resistor 10 kΩ <span class="muted">(Parte C)</span></td><td>5 V → D2</td></tr>
+          <tr><td>R3</td><td>Resistor 100 Ω <span class="muted">(Parte C)</span></td><td>D2 → SW1</td></tr>
+          <tr><td>C1</td><td>Capacitor 1 µF <span class="muted">(Parte C)</span></td><td>D2 → GND</td></tr>
+        </table>
+        <div class="note">Botões reais trepidam, cada um de um jeito. Se 10 apertos derem exatamente 10 na Parte A, aperte de leve ou mais rápido: a trepidação aparece mais nas bordas do movimento.</div>
+      </div>
+    </div>
+
+    <h3>Montando na protoboard</h3>
+    <ol class="steps">
+      <li>Encaixe o botão atravessando o canal central da protoboard. Ligue um terminal ao <b>D2</b> e o terminal do lado oposto ao <b>GND</b>.</li>
+      <li>Ligue o <b>D8</b> ao resistor de 220 Ω, o resistor ao <b>ânodo</b> (perna longa) do LED e o <b>cátodo</b> ao GND.</li>
+      <li>Conecte o Arduino pela USB, abra a Arduino IDE, selecione a placa <span class="mono">Arduino Uno</span> e a porta.</li>
+      <li>Grave o código da Parte A e abra o <b>Monitor Serial</b> em <span class="mono">9600</span> baud.</li>
+    </ol>
+  </section>
+
+  <!-- ============ PARTE A ============ -->
+  <section id="parteA" class="block">
+    <p class="kicker">Parte A</p>
+    <h2>Contador sem debounce</h2>
+    <p>O programa conta cada <b>borda de descida</b> (HIGH → LOW) como um aperto. Rode, aperte o botão <b>exatamente 10 vezes</b>, com calma, e anote a contagem final do Monitor Serial.</p>
+    <div class="code-box">
+      <div class="code-head"><span class="mono">sketch.ino · Parte A</span><div class="btn-row"><button type="button" class="btn ghost" data-copy="codeA">Copiar</button><button type="button" class="btn ghost" data-download="codeA" data-name="sketch.ino">Baixar</button></div></div>
+<pre class="code-pre" id="codeA"><span class="tok-c">// Lab 2 — Parte A: contador SEM debounce</span>
+
+<span class="tok-k">const int</span> PINO_BOTAO = <span class="tok-n">2</span>;   <span class="tok-c">// botão entre D2 e GND</span>
+<span class="tok-k">const int</span> PINO_LED   = <span class="tok-n">8</span>;   <span class="tok-c">// LED com resistor de 220 Ω</span>
+
+<span class="tok-k">int</span> contador = <span class="tok-n">0</span>;
+<span class="tok-k">int</span> estadoAnterior = <span class="tok-k">HIGH</span>;   <span class="tok-c">// INPUT_PULLUP: solto = HIGH</span>
+
+<span class="tok-k">void</span> <span class="tok-f">setup</span>() {
+  <span class="tok-f">pinMode</span>(PINO_BOTAO, <span class="tok-k">INPUT_PULLUP</span>);
+  <span class="tok-f">pinMode</span>(PINO_LED, <span class="tok-k">OUTPUT</span>);
+  Serial.<span class="tok-f">begin</span>(<span class="tok-n">9600</span>);
+}
+
+<span class="tok-k">void</span> <span class="tok-f">loop</span>() {
+  <span class="tok-k">int</span> leitura = <span class="tok-f">digitalRead</span>(PINO_BOTAO);
+  <span class="tok-k">if</span> (estadoAnterior == <span class="tok-k">HIGH</span> &amp;&amp; leitura == <span class="tok-k">LOW</span>) {   <span class="tok-c">// borda de descida = aperto</span>
+    contador++;
+    <span class="tok-f">digitalWrite</span>(PINO_LED, !<span class="tok-f">digitalRead</span>(PINO_LED));
+    Serial.<span class="tok-f">print</span>(<span class="tok-s">"Apertos: "</span>);
+    Serial.<span class="tok-f">println</span>(contador);
+  }
+  estadoAnterior = leitura;
+}</pre>
+    </div>
+    <div class="note warn">Se a contagem passar de 10, você viu a trepidação acontecer. Se der exatamente 10, aperte de novo algumas vezes: a trepidação é aleatória e nem todo aperto quica.</div>
+  </section>
+
+  <!-- ============ PARTE B ============ -->
+  <section id="parteB" class="block">
+    <p class="kicker">Parte B</p>
+    <h2>Debounce por software</h2>
+    <p>A ideia: toda vez que a leitura muda, o programa <b>zera um cronômetro</b>. Só quando a leitura fica parada por mais que a <b>janela de debounce</b> ela é aceita como o novo estado do botão. Como usa <span class="mono">millis()</span> e não <span class="mono">delay()</span>, o <span class="mono">loop()</span> continua livre para outras tarefas.</p>
+    <div class="code-box">
+      <div class="code-head"><span class="mono">sketch.ino · Parte B</span><div class="btn-row"><button type="button" class="btn ghost" data-copy="codeB">Copiar</button><button type="button" class="btn ghost" data-download="codeB" data-name="sketch.ino">Baixar</button></div></div>
+<pre class="code-pre" id="codeB"><span class="tok-c">// Lab 2 — Parte B: contador COM debounce por software</span>
+
+<span class="tok-k">const int</span> PINO_BOTAO = <span class="tok-n">2</span>;
+<span class="tok-k">const int</span> PINO_LED   = <span class="tok-n">8</span>;
+<span class="tok-k">const unsigned long</span> JANELA_DEBOUNCE = <span class="tok-n">50</span>;   <span class="tok-c">// ms</span>
+
+<span class="tok-k">int</span> contador = <span class="tok-n">0</span>;
+<span class="tok-k">int</span> estadoEstavel = <span class="tok-k">HIGH</span>;          <span class="tok-c">// último estado aceito</span>
+<span class="tok-k">int</span> ultimaLeitura = <span class="tok-k">HIGH</span>;          <span class="tok-c">// última leitura bruta</span>
+<span class="tok-k">unsigned long</span> instanteMudanca = <span class="tok-n">0</span>;  <span class="tok-c">// quando a leitura mudou pela última vez</span>
+
+<span class="tok-k">void</span> <span class="tok-f">setup</span>() {
+  <span class="tok-f">pinMode</span>(PINO_BOTAO, <span class="tok-k">INPUT_PULLUP</span>);
+  <span class="tok-f">pinMode</span>(PINO_LED, <span class="tok-k">OUTPUT</span>);
+  Serial.<span class="tok-f">begin</span>(<span class="tok-n">9600</span>);
+}
+
+<span class="tok-k">void</span> <span class="tok-f">loop</span>() {
+  <span class="tok-k">int</span> leitura = <span class="tok-f">digitalRead</span>(PINO_BOTAO);
+
+  <span class="tok-k">if</span> (leitura != ultimaLeitura) {      <span class="tok-c">// o sinal mexeu: reinicia o cronômetro</span>
+    instanteMudanca = <span class="tok-f">millis</span>();
+  }
+
+  <span class="tok-k">if</span> (<span class="tok-f">millis</span>() - instanteMudanca &gt; JANELA_DEBOUNCE &amp;&amp; leitura != estadoEstavel) {
+    estadoEstavel = leitura;             <span class="tok-c">// ficou parado por mais que a janela: aceita</span>
+    <span class="tok-k">if</span> (estadoEstavel == <span class="tok-k">LOW</span>) {        <span class="tok-c">// o novo estado é "apertado"</span>
+      contador++;
+      <span class="tok-f">digitalWrite</span>(PINO_LED, !<span class="tok-f">digitalRead</span>(PINO_LED));
+      Serial.<span class="tok-f">print</span>(<span class="tok-s">"Apertos: "</span>);
+      Serial.<span class="tok-f">println</span>(contador);
+    }
+  }
+  ultimaLeitura = leitura;
+}</pre>
+    </div>
+    <div class="note">Teste de aceitação: aperte o botão <b>10 vezes</b>. A contagem deve ser <b>exatamente 10</b> e o LED deve alternar a cada aperto. Depois, experimente <span class="mono">JANELA_DEBOUNCE = 1</span> e veja a trepidação voltar.</div>
+  </section>
+
+  <!-- ============ PARTE C ============ -->
+  <section id="parteC" class="block">
+    <p class="kicker">Parte C</p>
+    <h2>Debounce por hardware: filtro RC</h2>
+    <p>No lugar do pull-up interno, um resistor externo <b>R</b> carrega um capacitor <b>C</b> ligado ao pino. O botão descarrega o capacitor quase na hora (por um resistor pequeno, de 100 Ω, que protege os contatos). Quando o botão quica e abre por um instante, o capacitor <b>não tem tempo</b> de carregar até o limiar de HIGH, e o pino continua lendo LOW.</p>
+
+    <div class="grid-2 even">
+      <div class="sim">
+        <div class="sim-head"><span class="sim-title">Rede RC no pino D2</span></div>
+        <svg id="rcSchematic" class="stage" viewBox="0 0 420 300" role="img" aria-label="Esquema: resistor R do 5 V ao pino D2, capacitor C do pino ao GND, botão com resistor de 100 ohms do pino ao GND"></svg>
+      </div>
+      <div class="stack">
+        <h3>As contas</h3>
+        <div class="formula-box">
+          <p><b>Constante de tempo:</b> <span class="mono">τ = R · C</span></p>
+          <p><b>Carga do capacitor:</b> <span class="mono">V(t) = Vcc · (1 − e<sup>−t/τ</sup>)</span></p>
+          <p><b>Tempo para chegar a uma tensão V:</b> <span class="mono">t = −τ · ln(1 − V/Vcc)</span></p>
+        </div>
+        <p>O ATmega328P considera <b>HIGH</b> acima de <span class="mono">VIH = 0,6 · Vcc = 3 V</span> e <b>LOW</b> abaixo de <span class="mono">VIL = 0,3 · Vcc = 1,5 V</span>, com uma entrada <b>Schmitt trigger</b> (histerese) entre os dois. O filtro funciona se o capacitor levar <b>mais tempo</b> para chegar a 3 V do que a trepidação dura.</p>
+        <h3>Montagem</h3>
+        <ol class="steps">
+          <li>Desligue o fio que ia do botão ao GND.</li>
+          <li>Resistor de <b>10 kΩ</b> do <b>5 V</b> ao <b>D2</b>.</li>
+          <li>Capacitor de <b>1 µF</b> do <b>D2</b> ao <b>GND</b>. Se for eletrolítico, a perna negativa (lado da faixa) vai no GND.</li>
+          <li>Botão do <b>D2</b> ao <b>GND</b>, passando pelo resistor de <b>100 Ω</b>.</li>
+          <li>Grave o código da <b>Parte A</b> trocando <span class="mono">INPUT_PULLUP</span> por <span class="mono">INPUT</span> e conte 10 apertos.</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="sim" id="rcSim">
+      <div class="sim-head"><span class="sim-title">Simulação · aperto e soltura com trepidação</span>
+        <div class="btn-row"><button type="button" class="btn orange" id="rcNew">Novo aperto ↻</button><div class="seg" id="rcMode"><button type="button" data-v="rc" aria-pressed="true">Com RC</button><button type="button" data-v="raw" aria-pressed="false">Sem RC</button></div></div></div>
+      <canvas id="rcPlot" height="300"></canvas>
+      <div class="controls three">
+        <div class="ctl"><label for="rcR">Resistor R</label><output id="rcRo"></output><input id="rcR" type="range" min="0" max="5" step="1" value="3"></div>
+        <div class="ctl"><label for="rcC">Capacitor C</label><output id="rcCo"></output><input id="rcC" type="range" min="0" max="5" step="1" value="3"></div>
+        <div class="ctl"><label for="rcB">Duração da trepidação</label><output id="rcBo"></output><input id="rcB" type="range" min="1" max="20" step="1" value="6"></div>
+      </div>
+      <div class="stats">
+        <div class="stat blue"><span>τ = R·C</span><b id="rcTau">–</b></div>
+        <div class="stat"><span>bordas no contato</span><b id="rcRaw">–</b></div>
+        <div class="stat orange"><span>apertos lidos no pino</span><b id="rcPin">–</b></div>
+        <div class="stat mint"><span>volta a HIGH após soltar</span><b id="rcBack">–</b></div>
+      </div>
+      <p class="step-caption" id="rcVerdict"></p>
+    </div>
+
+    <h3>Software × hardware</h3>
+    <div class="table-wrap">
+      <table class="cmp">
+        <thead><tr><th></th><th>Software (millis)</th><th>Hardware (RC)</th></tr></thead>
+        <tbody>
+          <tr><th>Custo</th><td>Nenhum componente</td><td>Resistor + capacitor por botão</td></tr>
+          <tr><th>Código</th><td>Mais lógica e variáveis por botão</td><td>Leitura direta, sem janela de tempo</td></tr>
+          <tr><th>Ajuste</th><td>Muda uma constante e regrava</td><td>Troca componentes</td></tr>
+          <tr><th>Interrupções</th><td>A ISR ainda dispara várias vezes</td><td>Entrega uma borda limpa à interrupção</td></tr>
+          <tr><th>Atraso</th><td>A janela (ex.: 50 ms)</td><td>≈ 0,9 · τ na soltura</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ ROTEIRO + FORMULÁRIO ============ -->
+  <section id="roteiro" class="block">
+    <h2>Roteiro 5C e entrega</h2>
+    <p>Siga as etapas na ordem e registre cada uma no formulário. Suas respostas ficam salvas como rascunho neste navegador até você enviar. Use <b>Baixar PROCESSO.md</b> para guardar uma cópia das suas respostas.</p>
+
+    <div class="note warn" id="formStatus" hidden></div>
+
+    <form id="labForm" novalidate>
+      <fieldset class="step">
+        <legend>Identificação</legend>
+        <div class="fields two">
+          <label>Nome completo<input name="nome" required autocomplete="name"></label>
+          <label>E-mail institucional<input name="email" type="email" required autocomplete="email"></label>
+          <label>Turma<input name="turma" required placeholder="ex.: T26"></label>
+          <label>Grupo<input name="grupo" required placeholder="ex.: Grupo 3"></label>
+        </div>
+      </fieldset>
+
+      <fieldset class="step">
+        <legend><span class="n">1</span> Contextualizar</legend>
+        <p class="step-desc">Antes de mexer no código, escreva com suas palavras:</p>
+        <ul class="bullets">
+          <li><b>o objetivo:</b> contar apertos de um botão de forma confiável;</li>
+          <li><b>o comportamento esperado:</b> cada aperto soma exatamente 1 e alterna o LED;</li>
+          <li><b>o critério de aceitação:</b> 10 apertos geram contagem 10 no Monitor Serial, e o filtro RC escolhido leva mais tempo para chegar a VIH do que a trepidação dura;</li>
+          <li><b>o que você vai delegar à IA</b> e o que pretende fazer sozinho.</li>
+        </ul>
+        <div class="fields">
+          <label>Objetivo<textarea name="ctx_objetivo" required rows="2"></textarea></label>
+          <label>Comportamento esperado<textarea name="ctx_comportamento" required rows="2"></textarea></label>
+          <label>Critério de aceitação<textarea name="ctx_criterio" required rows="2"></textarea></label>
+          <label>O que delego à IA e o que faço sozinho<textarea name="ctx_delegacao" required rows="2"></textarea></label>
+        </div>
+      </fieldset>
+
+      <fieldset class="step">
+        <legend><span class="n">2</span> Consultar</legend>
+        <p class="step-desc">Faça à IA uma pergunta <b>delimitada</b> sobre um ponto que você não domina. Uma pergunta delimitada pede explicação ou hipótese, não o código pronto. Exemplo: “Por que o debounce com millis() não trava o programa e o com delay() trava?”</p>
+        <div class="fields">
+          <label>Ferramenta de IA usada
+            <select name="con_ferramenta" required>
+              <option value="">Selecione…</option><option>Gemini</option><option>ChatGPT</option><option>Claude</option><option>Copilot</option><option>Outra</option>
+            </select></label>
+          <label>Pergunta, exatamente como você fez<textarea name="con_pergunta" required rows="2"></textarea></label>
+          <label>Resposta da IA, resumida<textarea name="con_resposta" required rows="3"></textarea></label>
+        </div>
+      </fieldset>
+
+      <fieldset class="step">
+        <legend><span class="n">3</span> Confrontar</legend>
+        <p class="step-desc">Escolha uma afirmação técnica da resposta e confira contra uma fonte primária:</p>
+        <ul class="bullets orange">
+          <li>o exemplo oficial <a href="https://docs.arduino.cc/built-in-examples/digital/Debounce/" target="_blank" rel="noopener">Debounce da documentação do Arduino</a>, que usa uma janela de 50 ms;</li>
+          <li>o datasheet do ATmega328P: limiares VIH = 0,6·Vcc e VIL = 0,3·Vcc e entrada com Schmitt trigger;</li>
+          <li>o seu próprio teste na bancada: a contagem das Partes A, B e C.</li>
+        </ul>
+        <p class="step-desc">Diga se a afirmação se confirmou, precisou de ajuste ou estava errada, citando o trecho da fonte ou o resultado do teste. Se você rejeitou ou corrigiu uma sugestão, ela vira o seu ADR (registro de decisão).</p>
+        <div class="fields">
+          <label>Afirmação da IA que você conferiu<textarea name="conf_afirmacao" required rows="2"></textarea></label>
+          <label>Fonte primária usada
+            <select name="conf_fonte" required>
+              <option value="">Selecione…</option><option>Documentação oficial do Arduino</option><option>Datasheet do ATmega328P</option><option>Teste na bancada</option><option>Simulação RC desta página</option><option>Cálculo (τ = R·C)</option><option>Outra</option>
+            </select></label>
+          <label>Trecho da fonte, cálculo ou resultado que confirma/rejeita<textarea name="conf_trecho" required rows="2"></textarea></label>
+          <label>Veredito
+            <select name="conf_veredito" required>
+              <option value="">Selecione…</option><option>Confirmada</option><option>Precisou de ajuste</option><option>Estava errada</option>
+            </select></label>
+          <label>ADR: decisão tomada e justificativa <span class="opt-tag">opcional, obrigatório se ajustou/rejeitou</span><textarea name="conf_adr" rows="2"></textarea></label>
+        </div>
+      </fieldset>
+
+      <fieldset class="step">
+        <legend><span class="n">4</span> Construir</legend>
+        <p class="step-desc">Monte e rode as três partes na bancada e registre a contagem do Monitor Serial após 10 apertos em cada uma.</p>
+        <div class="fields two">
+          <label>Contagem após 10 apertos · Parte A (sem debounce)<input name="cons_sem" type="number" step="1" min="0" required></label>
+          <label>Contagem após 10 apertos · Parte B (software)<input name="cons_com" type="number" step="1" min="0" required></label>
+          <label>Contagem após 10 apertos · Parte C (filtro RC)<input name="cons_rc_cont" type="number" step="1" min="0" required></label>
+          <label>Valores do filtro RC montado<input name="cons_rc" required placeholder="ex.: R = 10 kΩ, C = 1 µF"></label>
+        </div>
+        <div class="checks">
+          <label class="check"><input type="checkbox" name="cons_funciona" value="sim"> Partes B e C funcionando na bancada: 10 apertos, contagem 10, LED alternando</label>
+        </div>
+      </fieldset>
+
+      <fieldset class="step">
+        <legend><span class="n">5</span> Comprovar <span class="no-ai">sem IA</span></legend>
+        <p class="step-desc">Responda sozinho, sem consultar a IA. Na correção, o professor pode pedir que você explique qualquer resposta.</p>
+
+        <div class="q-block">
+          <p class="q-title">5.1 Qual é a constante de tempo τ de um filtro com R = 10 kΩ e C = 1 µF?</p>
+          <div class="fields two">
+            <label>τ (ms)<input name="comp_tau" type="number" step="0.01" min="0" required></label>
+            <label>Cálculo<input name="comp_tau_calc" required placeholder="τ = R · C = …"></label>
+          </div>
+        </div>
+
+        <div class="q-block">
+          <p class="q-title">5.2 Na Parte A, 10 apertos geraram mais de 10 contagens. Qual é a causa?</p>
+          <div class="radios">
+            <label><input type="radio" name="comp_bounce" value="a" required> O <span class="mono">loop()</span> roda devagar demais e perde leituras.</label>
+            <label><input type="radio" name="comp_bounce" value="b"> Os contatos trepidam e geram várias bordas de descida em poucos milissegundos.</label>
+            <label><input type="radio" name="comp_bounce" value="c"> O pull-up interno deixa a entrada flutuando.</label>
+            <label><input type="radio" name="comp_bounce" value="d"> O <span class="mono">Serial.println</span> conta os caracteres enviados.</label>
+          </div>
+          <label class="full">Explique com suas palavras<input name="comp_bounce_just" required></label>
+        </div>
+
+        <div class="q-block">
+          <p class="q-title">5.3 Com R = 10 kΩ e C = 1 µF, quanto tempo após soltar o botão o capacitor leva para carregar de 0 V até VIH = 3 V (Vcc = 5 V)?</p>
+          <div class="fields two">
+            <label>Tempo (ms)<input name="comp_tvih" type="number" step="0.01" min="0" required></label>
+            <label>Cálculo<input name="comp_tvih_calc" required placeholder="t = −τ · ln(1 − 3/5) = …"></label>
+          </div>
+        </div>
+
+        <div class="q-block">
+          <p class="q-title">5.4 Tarefa de transferência: um botão de outro fornecedor trepida por até <b>15 ms</b>. Mantendo R = 10 kΩ, qual é o <b>menor</b> capacitor comercial que garante que o pino só chegue a VIH depois que a trepidação acabou?</p>
+          <div class="radios">
+            <label><input type="radio" name="comp_cap" value="a" required> 0,47 µF</label>
+            <label><input type="radio" name="comp_cap" value="b"> 1 µF</label>
+            <label><input type="radio" name="comp_cap" value="c"> 2,2 µF</label>
+            <label><input type="radio" name="comp_cap" value="d"> 4,7 µF</label>
+          </div>
+        </div>
+
+        <label class="check decl"><input type="checkbox" name="decl_sem_ia" value="sim" required> Declaro que respondi a etapa Comprovar sem consultar IA.</label>
+      </fieldset>
+
+      <div class="submit-row">
+        <button type="submit" class="btn" id="btnSend">Enviar respostas</button>
+        <button type="button" class="btn blue" id="btnMd">Baixar PROCESSO.md</button>
+        <button type="button" class="btn ghost" id="btnClear">Limpar rascunho</button>
+      </div>
+      <div class="receipt" id="receipt" hidden></div>
+    </form>
+  </section>
+
+  <footer class="doc-foot">Lab 2 · Microcontroladores e Programação Embarcada · Professor Doutor Roberto Cândido</footer>
+</main>
+
+<script src="config.js"></script>
+<script src="lab.js"></script>
+</body>
+</html>
