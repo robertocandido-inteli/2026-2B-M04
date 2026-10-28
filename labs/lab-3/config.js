@@ -5,5 +5,5 @@
    baixar o PROCESSO.md. */
 window.LAB_CONFIG = {
   labId: 'lab-3',
-  endpoint: 'https://script.google.com/macros/s/AKfycby0n7ktOyJChZmdGjhIFTO41byuUIoiA3HOjiKjYCbpMpTRgs4V2SETO9MvljbEPvrwrA/exec'
+  endpoint: 'https://script.google.com/macros/library/d/1py0shSYfy9asTlN4YCtkT8SFHHBcr_axaf-Bx0_lgIbdKvRdSZD5rF4p/5'
 };
