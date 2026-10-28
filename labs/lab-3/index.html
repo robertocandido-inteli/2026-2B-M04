@@ -1,0 +1,689 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lab 3 · Falhas e Watchdog</title>
+<meta name="description" content="Laboratório 3 — detecção de falha do sensor ultrassônico e do LCD I2C, recuperação sem reset e watchdog no Arduino Uno, com uso de IA guiado pelos 5C.">
+<link rel="icon" href="logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="lab.css">
+<script src="theme.js"></script>
+</head>
+<body class="lab">
+
+<header class="topbar">
+  <img class="logo" src="logo.png" alt="Inteli">
+  <div class="deck-title"><b>Lab 3</b> · Falhas do sensor, do LCD e watchdog</div>
+  <span class="spacer"></span>
+  <a class="btn ghost" href="../../aulas/aula-3/index.html">← Aula 3</a>
+  <button class="icon-btn theme-btn" id="btnTheme" title="Tema claro/escuro" aria-label="Alternar tema claro/escuro"><svg class="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><svg class="i-moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+</header>
+
+<main class="doc">
+
+  <!-- ============ CAPA ============ -->
+  <section class="hero">
+    <p class="kicker">Atividade prática · Aula 3</p>
+    <h1>Lab 3 — Falhas e watchdog</h1>
+    <p class="lead">Um medidor de distância com sensor ultrassônico e display LCD funciona bem na bancada, até que um fio solta. Você vai <b>provocar duas falhas</b> (o sensor para de responder e o LCD perde a alimentação), ver o que a versão ingênua faz, escrever a versão que <b>detecta e se recupera</b> e, por fim, colocar o <b>watchdog</b> como rede de segurança contra travamentos.</p>
+    <div class="meta">
+      <span class="pill on">Bancada · Arduino UNO</span>
+      <span class="pill info">HC-SR04 + LCD 16×2 I²C</span>
+      <span class="pill warn">IA permitida, seguindo os 5C</span>
+      <span class="pill">Entrega: formulário</span>
+    </div>
+    <nav class="toc" aria-label="Sumário">
+      <a href="#ia">Regras de IA (5C)</a>
+      <a href="#problema">O problema</a>
+      <a href="#circuito">Circuito</a>
+      <a href="#parteA">A · Versão ingênua</a>
+      <a href="#parteB">B · Detectar e recuperar</a>
+      <a href="#parteC">C · Watchdog</a>
+      <a href="#roteiro">Roteiro e entrega</a>
+    </nav>
+  </section>
+
+  <!-- ============ 5C ============ -->
+  <section id="ia" class="block">
+    <h2>Usando IA neste lab: os 5C</h2>
+    <p class="muted">Você pode usar IA (por exemplo, o Gemini), mas o objetivo é aprender, não terceirizar. Cada etapa tem uma evidência mínima, que você registra no formulário no fim desta página.</p>
+    <div class="table-wrap">
+      <table class="c5">
+        <thead><tr><th>Etapa</th><th>Aluno</th><th>Professor</th><th>Evidência mínima</th></tr></thead>
+        <tbody>
+          <tr><th>Contextualizar</th><td>Interpreta o problema, explicita requisitos e critérios de sucesso</td><td>Entrega briefing, define limites de IA e testes de aceitação</td><td>Mapa do problema, arquitetura inicial</td></tr>
+          <tr><th>Consultar</th><td>Formula dúvida delimitada, pede hipóteses (não solução pronta)</td><td>Modela boas perguntas, aponta documentação primária</td><td>Registro da dúvida, contexto e fonte</td></tr>
+          <tr><th>Confrontar</th><td>Compara resposta da IA com documentação, testes, medições</td><td>Questiona pressupostos, pede contraprovas</td><td>Fonte primária + teste que confirma/rejeita</td></tr>
+          <tr><th>Construir</th><td>Adapta, integra, refatora, justifica decisões</td><td>Faz checkpoints, não entrega solução integral</td><td>Artefato versionado + justificativa técnica</td></tr>
+          <tr><th>Comprovar</th><td>Demonstra, explica, resolve variação sem IA</td><td>Aplica rubrica, argui individualmente</td><td>Demonstração + explicação + tarefa de transferência</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ PROBLEMA ============ -->
+  <section id="problema" class="block">
+    <h2>O problema: o que acontece quando um fio solta?</h2>
+    <p>O programa só enxerga números e respostas do barramento. Se ninguém verifica, uma falha física vira um <b>dado errado tratado como verdade</b> ou um <b>programa travado</b>. Neste lab, cada falha tem uma resposta no código:</p>
+    <div class="cards" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+      <div class="card orange"><h3>Falha 1 · Sensor</h3><p>O sensor para de responder. Sem limite de espera, <span class="mono">pulseIn()</span> fica até <b>1 s</b> esperando o eco e devolve <b>0</b>, que o LCD mostra como “0 cm”.</p><p class="muted">Resposta: timeout + validação por faixa + falha só depois de 3 leituras ruins seguidas.</p></div>
+      <div class="card blue"><h3>Falha 2 · LCD</h3><p>O display perde a alimentação. Ao voltar, ele precisa ser <b>reinicializado</b>; sem isso, fica com quadrados pretos. O barramento I²C também pode travar o programa.</p><p class="muted">Resposta: verificar o ACK do I²C a cada segundo e reinicializar quando o LCD voltar.</p></div>
+      <div class="card red"><h3>Rede de segurança · WDT</h3><p>E se o código travar por um motivo que ninguém previu? O <b>watchdog</b> é um temporizador de hardware que reinicia o chip se o <span class="mono">loop()</span> parar de avisar que está vivo.</p><p class="muted">Resposta: <span class="mono">wdt_reset()</span> em um único ponto, no fim do loop.</p></div>
+    </div>
+    <div class="note">Conteúdo da Aula 3 usado aqui: validação de leituras (slide 17), verificação de I²C (slide 19), <span class="mono">millis()</span> e timeouts (slide 20), watchdog (slides 21 e 22) e buffers fixos com <span class="mono">snprintf()</span> (slide 7).</div>
+  </section>
+
+  <!-- ============ CIRCUITO ============ -->
+  <section id="circuito" class="block">
+    <h2>O circuito na bancada</h2>
+    <p>O sensor ultrassônico <b>HC-SR04</b> usa dois pinos digitais: <b>D9</b> dispara a medição (TRIG) e <b>D10</b> recebe o eco (ECHO). O <b>LCD 16×2 com módulo I²C</b> usa só dois fios de dados: <b>SDA em A4</b> e <b>SCL em A5</b>. Os dois são alimentados pelo <b>5 V</b> do Arduino.</p>
+    <div class="grid-2 even">
+      <div class="sim">
+        <div class="sim-head"><span class="sim-title">Esquema de ligação</span></div>
+        <svg id="schematic" class="stage" viewBox="0 0 620 360" role="img" aria-label="Arduino Uno ligado ao HC-SR04 (VCC 5 V, TRIG D9, ECHO D10, GND) e ao LCD I2C (VCC 5 V, GND, SDA A4, SCL A5)"></svg>
+      </div>
+      <div class="stack">
+        <h3>Componentes</h3>
+        <table class="parts">
+          <tr><th>Ref.</th><th>Componente</th><th>Ligação</th></tr>
+          <tr><td>U1</td><td>Arduino UNO + cabo USB</td><td>—</td></tr>
+          <tr><td>U2</td><td>Sensor ultrassônico HC-SR04</td><td>VCC → 5 V · TRIG → D9 · ECHO → D10 · GND → GND</td></tr>
+          <tr><td>U3</td><td>LCD 16×2 com módulo I²C (PCF8574)</td><td>VCC → 5 V · GND → GND · SDA → A4 · SCL → A5</td></tr>
+          <tr><td>—</td><td>Jumpers macho-fêmea e protoboard</td><td>5 V e GND distribuídos pela protoboard</td></tr>
+        </table>
+        <div class="note warn">Monte com o Arduino <b>desligado da USB</b>. Use a protoboard para distribuir 5 V e GND: assim fica fácil soltar um fio de cada vez durante os testes.</div>
+      </div>
+    </div>
+
+    <h3>Preparando a Arduino IDE</h3>
+    <ol class="steps">
+      <li>Monte o circuito, conecte o Arduino pela USB e selecione a placa <span class="mono">Arduino Uno</span> e a porta.</li>
+      <li>Em <b>Ferramentas → Gerenciar bibliotecas</b>, instale <span class="mono">LiquidCrystal I2C</span> (de Frank de Brabander).</li>
+      <li>Em <b>Ferramentas → Placa → Gerenciador de placas</b>, confira se <span class="mono">Arduino AVR Boards</span> está na versão <b>1.8.3 ou mais nova</b>: a função <span class="mono">Wire.setWireTimeout()</span> da Parte B só existe a partir dela.</li>
+      <li>Se o LCD acender mas não mostrar texto, gire o <b>trimpot azul</b> atrás do módulo (contraste). Se continuar sem texto, troque o endereço <span class="mono">0x27</span> por <span class="mono">0x3F</span> no código.</li>
+      <li>Abra o <b>Monitor Serial</b> em <span class="mono">9600</span> baud.</li>
+    </ol>
+  </section>
+
+  <!-- ============ PARTE A ============ -->
+  <section id="parteA" class="block">
+    <p class="kicker">Parte A</p>
+    <h2>A versão ingênua</h2>
+    <p>Este código mede a distância e mostra no LCD. Ele funciona na bancada, mas <b>não verifica nada</b>. Além da distância, a serial mostra quanto tempo cada volta do <span class="mono">loop()</span> levou.</p>
+    <div class="code-box">
+      <div class="code-head"><span class="mono">sketch.ino · Parte A</span><div class="btn-row"><button type="button" class="btn ghost" data-copy="codeA">Copiar</button><button type="button" class="btn ghost" data-download="codeA" data-name="sketch.ino">Baixar</button></div></div>
+<pre class="code-pre" id="codeA">// Lab 3 — Parte A: versão ingênua (nenhuma verificação de falha)
+#include &lt;Wire.h&gt;
+#include &lt;LiquidCrystal_I2C.h&gt;
+
+const int PINO_TRIG = 9;
+const int PINO_ECHO = 10;
+
+LiquidCrystal_I2C lcd(0x27, 16, 2);   // endereço 0x27 (alguns módulos usam 0x3F)
+
+void setup() {
+  pinMode(PINO_TRIG, OUTPUT);
+  pinMode(PINO_ECHO, INPUT);
+  Serial.begin(9600);
+  lcd.init();
+  lcd.backlight();
+}
+
+void loop() {
+  unsigned long inicio = millis();
+
+  // pulso de 10 µs no TRIG dispara uma medição
+  digitalWrite(PINO_TRIG, LOW);  delayMicroseconds(2);
+  digitalWrite(PINO_TRIG, HIGH); delayMicroseconds(10);
+  digitalWrite(PINO_TRIG, LOW);
+
+  unsigned long eco = pulseIn(PINO_ECHO, HIGH);   // espera o eco voltar
+  unsigned int cm = eco / 58;                      // 58 µs por cm (ida e volta)
+
+  lcd.setCursor(0, 0);
+  lcd.print("Dist: ");
+  lcd.print(cm);
+  lcd.print(" cm    ");
+
+  Serial.print(cm);
+  Serial.print(" cm   volta do loop = ");
+  Serial.print(millis() - inicio);
+  Serial.println(" ms");
+
+  delay(250);
+}</pre>
+    </div>
+
+    <h3>Provoque as duas falhas</h3>
+    <ol class="steps">
+      <li><b>Funcionando:</b> aponte o sensor para a sua mão a uns 20 cm e anote a <b>volta do loop</b> na serial.</li>
+      <li><b>Falha 1, sensor:</b> solte o fio do <b>TRIG (D9)</b>. O sensor nunca é disparado, então o eco nunca vem. Observe o LCD e a volta do loop. Reconecte o fio.</li>
+      <li><b>Falha 2, LCD:</b> solte o fio <b>VCC do LCD</b> por uns 3 s e reconecte. Observe o display e se a serial continua andando.</li>
+    </ol>
+    <div class="grid-2 even">
+      <div class="stack">
+        <span class="muted mono" style="font-size:13px">O que se espera ver com o TRIG solto</span>
+        <div class="lcd"><span>Dist: 0 cm      </span><span>                </span></div>
+        <p class="muted" style="font-size:14px">O display mostra 0 cm como se fosse uma medida real, e a volta do loop passa de ~1 250 ms: o <span class="mono">pulseIn()</span> ficou 1 s esperando.</p>
+      </div>
+      <div class="stack">
+        <span class="muted mono" style="font-size:13px">O que se espera ver depois de religar o LCD</span>
+        <div class="lcd"><span class="blk">████████████████</span><span>                </span></div>
+        <p class="muted" style="font-size:14px">O LCD volta “de fábrica”, com quadrados pretos, e só sai disso com um novo <span class="mono">lcd.init()</span>. Pode acontecer também de o barramento I²C travar e a serial <b>parar</b>: anote qual dos dois você viu.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PARTE B ============ -->
+  <section id="parteB" class="block">
+    <p class="kicker">Parte B</p>
+    <h2>Detectar e se recuperar</h2>
+    <p>A Parte B resolve as duas falhas sem reiniciar a placa. São quatro mudanças:</p>
+    <div class="table-wrap">
+      <table class="cmp">
+        <thead><tr><th>Mudança</th><th>Como</th><th>Por quê</th></tr></thead>
+        <tbody>
+          <tr><th>Timeout no eco</th><td><span class="mono">pulseIn(ECHO, HIGH, 30000)</span></td><td>Espera no máximo 30 ms, e não 1 s. Sem eco, devolve 0.</td></tr>
+          <tr><th>Validação</th><td>Fora de 2 a 400 cm = <b>suspeita</b>; 3 seguidas = <b>falha confirmada</b></td><td>Uma leitura ruim isolada pode ser ruído e não gera alarme.</td></tr>
+          <tr><th>LCD verificado</th><td><span class="mono">Wire.endTransmission() == 0</span> a cada 1 s; ao voltar, <span class="mono">lcd.init()</span></td><td>O I²C confirma cada envio com ACK. Sem ACK, o LCD não está lá.</td></tr>
+          <tr><th>Sem <span class="mono">delay()</span></th><td><span class="mono">millis()</span>: sensor a cada 250 ms, LCD a cada 1 s; I²C com timeout de 25 ms</td><td>Nenhuma espera prende o <span class="mono">loop()</span>.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="margin-top:14px">As linhas do LCD são montadas em <span class="mono">char buf[17]</span>: 16 colunas + o <span class="mono">'\0'</span>, com <span class="mono">snprintf()</span>, sem <span class="mono">String</span>. O formato <span class="mono">%-16s</span> completa a linha com espaços e apaga o que sobrou da mensagem anterior.</p>
+    <div class="code-box">
+      <div class="code-head"><span class="mono">sketch.ino · Parte B</span><div class="btn-row"><button type="button" class="btn ghost" data-copy="codeB">Copiar</button><button type="button" class="btn ghost" data-download="codeB" data-name="sketch.ino">Baixar</button></div></div>
+<pre class="code-pre" id="codeB">// Lab 3 — Parte B: detecção de falhas no sensor e no LCD
+#include &lt;Wire.h&gt;
+#include &lt;LiquidCrystal_I2C.h&gt;
+
+const int PINO_TRIG = 9;
+const int PINO_ECHO = 10;
+const uint8_t ENDERECO_LCD = 0x27;
+
+const unsigned long TIMEOUT_ECO = 30000;   // µs: espera máxima pelo eco
+const unsigned int DIST_MIN = 2;           // cm: faixa útil do HC-SR04
+const unsigned int DIST_MAX = 400;
+const int SUSPEITAS_PARA_FALHA = 3;        // leituras ruins seguidas = falha
+const unsigned long INTERVALO_SENSOR = 250;   // ms
+const unsigned long INTERVALO_LCD = 1000;     // ms
+
+LiquidCrystal_I2C lcd(ENDERECO_LCD, 16, 2);
+
+bool sensorOk = true;
+int suspeitas = 0;
+unsigned int ultimaBoa = 0;     // último valor válido, em cm
+bool lcdOk = false;
+unsigned long antesSensor = 0;
+unsigned long antesLcd = 0;
+
+// Registro: [instante] nível ORIGEM: mensagem   (I info · W aviso · E erro)
+void registrar(char nivel, const char* origem, const char* msg) {
+  Serial.print('[');
+  Serial.print(millis());
+  Serial.print("] ");
+  Serial.print(nivel);
+  Serial.print(' ');
+  Serial.print(origem);
+  Serial.print(": ");
+  Serial.println(msg);
+}
+
+// ---------- Sensor ----------
+unsigned int medirCm() {                    // devolve 0 se o eco não voltar
+  digitalWrite(PINO_TRIG, LOW);  delayMicroseconds(2);
+  digitalWrite(PINO_TRIG, HIGH); delayMicroseconds(10);
+  digitalWrite(PINO_TRIG, LOW);
+  unsigned long eco = pulseIn(PINO_ECHO, HIGH, TIMEOUT_ECO);
+  return eco / 58;
+}
+
+void lerSensor() {
+  unsigned int cm = medirCm();
+  bool valida = cm &gt;= DIST_MIN &amp;&amp; cm &lt;= DIST_MAX;
+
+  if (valida) {
+    suspeitas = 0;
+    ultimaBoa = cm;
+    if (!sensorOk) {
+      sensorOk = true;
+      registrar('I', "SENSOR", "voltou a responder");
+    }
+  } else if (sensorOk) {
+    suspeitas++;                            // 1 leitura ruim = suspeita
+    registrar('W', "SENSOR", "leitura suspeita");
+    if (suspeitas &gt;= SUSPEITAS_PARA_FALHA) {
+      sensorOk = false;                     // 3 seguidas = falha confirmada
+      registrar('E', "SENSOR", "falha confirmada");
+    }
+  }
+}
+
+// ---------- LCD ----------
+void iniciarLcd() {
+  lcd.init();
+  lcd.backlight();
+  Wire.setWireTimeout(25000, true);         // I2C nunca espera mais que 25 ms
+}
+
+bool lcdPresente() {
+  Wire.beginTransmission(ENDERECO_LCD);
+  return Wire.endTransmission() == 0;       // 0 = o módulo respondeu (ACK)
+}
+
+void escreverLinha(uint8_t linha, const char* texto) {
+  char buf[17];                             // 16 colunas + '\0'
+  snprintf(buf, sizeof(buf), "%-16s", texto);   // completa com espaços
+  lcd.setCursor(0, linha);
+  lcd.print(buf);
+}
+
+void atualizarLcd() {
+  if (!lcdPresente()) {
+    if (lcdOk) registrar('E', "LCD", "sem resposta no I2C");
+    lcdOk = false;
+    return;                                 // o resto do sistema continua
+  }
+  if (!lcdOk) {                             // acabou de voltar: reinicializa
+    iniciarLcd();
+    lcdOk = true;
+    registrar('I', "LCD", "reconectado e reinicializado");
+  }
+
+  char texto[17];
+  if (sensorOk) snprintf(texto, sizeof(texto), "Dist: %u cm", ultimaBoa);
+  else          snprintf(texto, sizeof(texto), "Dist: --- cm");
+  escreverLinha(0, texto);
+  escreverLinha(1, sensorOk ? "Sensor: OK" : "Sensor: FALHA");
+}
+
+void setup() {
+  pinMode(PINO_TRIG, OUTPUT);
+  pinMode(PINO_ECHO, INPUT);
+  Serial.begin(9600);
+  Wire.begin();
+  Wire.setWireTimeout(25000, true);
+  registrar('I', "SISTEMA", "iniciado");
+}
+
+void loop() {
+  unsigned long agora = millis();
+
+  if (agora - antesSensor &gt;= INTERVALO_SENSOR) {
+    antesSensor = agora;
+    lerSensor();
+  }
+  if (agora - antesLcd &gt;= INTERVALO_LCD) {
+    antesLcd = agora;
+    atualizarLcd();
+  }
+}</pre>
+    </div>
+    <div class="grid-2 even">
+      <div class="stack">
+        <span class="muted mono" style="font-size:13px">Normal</span>
+        <div class="lcd"><span>Dist: 20 cm     </span><span>Sensor: OK      </span></div>
+      </div>
+      <div class="stack">
+        <span class="muted mono" style="font-size:13px">TRIG solto (falha confirmada)</span>
+        <div class="lcd"><span>Dist: --- cm    </span><span>Sensor: FALHA   </span></div>
+      </div>
+    </div>
+    <p style="margin-top:14px">Repita os dois testes da Parte A e acompanhe o registro na serial:</p>
+<pre class="code-pre" style="border-radius:var(--radius)">[3250] W SENSOR: leitura suspeita
+[3500] W SENSOR: leitura suspeita
+[3750] W SENSOR: leitura suspeita
+[3750] E SENSOR: falha confirmada
+[9000] I SENSOR: voltou a responder
+[14002] E LCD: sem resposta no I2C
+[17004] I LCD: reconectado e reinicializado</pre>
+    <div class="note">Teste de aceitação: com o TRIG solto, o LCD mostra <b>Sensor: FALHA</b> em até <b>2 s</b> e a serial registra <span class="mono">E SENSOR</span>. Ao reconectar, volta para <b>OK</b> sozinho. Ao religar o LCD, ele volta a mostrar texto em até <b>2 s</b>, <b>sem reset</b> e sem a serial parar.</div>
+  </section>
+
+  <!-- ============ PARTE C ============ -->
+  <section id="parteC" class="block">
+    <p class="kicker">Parte C</p>
+    <h2>Watchdog: a rede de segurança</h2>
+    <p>As Partes A e B trataram as falhas que <b>nós previmos</b>. O watchdog cuida das que ninguém previu: um laço infinito, uma biblioteca que trava, memória corrompida. Ele é um <b>temporizador de hardware</b> que conta até 2 s; o programa precisa zerá-lo (<span class="mono">wdt_reset()</span>) antes disso. Se o <span class="mono">loop()</span> travar e parar de zerar, o chip <b>reinicia sozinho</b>.</p>
+    <div class="cards" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+      <div class="card mint"><h3>Ligar</h3><p><span class="mono">wdt_enable(WDTO_2S)</span> no fim do <span class="mono">setup()</span>, depois da inicialização.</p></div>
+      <div class="card mint"><h3>Alimentar</h3><p><span class="mono">wdt_reset()</span> em <b>um único ponto</b>: o fim de uma volta completa do <span class="mono">loop()</span>.</p></div>
+      <div class="card mint"><h3>Registrar</h3><p>Um contador de boots na <b>EEPROM</b> sobrevive ao reset e mostra quantas vezes a placa reiniciou.</p></div>
+    </div>
+    <p style="margin-top:14px">O código é a Parte B com as linhas marcadas <span class="mono">// WDT</span>. Para testar, ele trava de propósito quando você envia a letra <b>t</b> pelo Monitor Serial.</p>
+    <div class="code-box">
+      <div class="code-head"><span class="mono">sketch.ino · Parte C</span><div class="btn-row"><button type="button" class="btn ghost" data-copy="codeC">Copiar</button><button type="button" class="btn ghost" data-download="codeC" data-name="sketch.ino">Baixar</button></div></div>
+<pre class="code-pre" id="codeC">// Lab 3 — Parte C: Parte B + watchdog
+// Só as diferenças em relação à Parte B estão comentadas com  // WDT
+#include &lt;Wire.h&gt;
+#include &lt;LiquidCrystal_I2C.h&gt;
+#include &lt;avr/wdt.h&gt;        // WDT
+#include &lt;EEPROM.h&gt;         // WDT: contador de boots que sobrevive ao reset
+
+const int PINO_TRIG = 9;
+const int PINO_ECHO = 10;
+const uint8_t ENDERECO_LCD = 0x27;
+
+const unsigned long TIMEOUT_ECO = 30000;
+const unsigned int DIST_MIN = 2;
+const unsigned int DIST_MAX = 400;
+const int SUSPEITAS_PARA_FALHA = 3;
+const unsigned long INTERVALO_SENSOR = 250;
+const unsigned long INTERVALO_LCD = 1000;
+
+LiquidCrystal_I2C lcd(ENDERECO_LCD, 16, 2);
+
+bool sensorOk = true;
+int suspeitas = 0;
+unsigned int ultimaBoa = 0;
+bool lcdOk = false;
+unsigned long antesSensor = 0;
+unsigned long antesLcd = 0;
+uint16_t boots = 0;         // WDT
+
+void registrar(char nivel, const char* origem, const char* msg) {
+  Serial.print('[');
+  Serial.print(millis());
+  Serial.print("] ");
+  Serial.print(nivel);
+  Serial.print(' ');
+  Serial.print(origem);
+  Serial.print(": ");
+  Serial.println(msg);
+}
+
+unsigned int medirCm() {
+  digitalWrite(PINO_TRIG, LOW);  delayMicroseconds(2);
+  digitalWrite(PINO_TRIG, HIGH); delayMicroseconds(10);
+  digitalWrite(PINO_TRIG, LOW);
+  unsigned long eco = pulseIn(PINO_ECHO, HIGH, TIMEOUT_ECO);
+  return eco / 58;
+}
+
+void lerSensor() {
+  unsigned int cm = medirCm();
+  bool valida = cm &gt;= DIST_MIN &amp;&amp; cm &lt;= DIST_MAX;
+  if (valida) {
+    suspeitas = 0;
+    ultimaBoa = cm;
+    if (!sensorOk) {
+      sensorOk = true;
+      registrar('I', "SENSOR", "voltou a responder");
+    }
+  } else if (sensorOk) {
+    suspeitas++;
+    registrar('W', "SENSOR", "leitura suspeita");
+    if (suspeitas &gt;= SUSPEITAS_PARA_FALHA) {
+      sensorOk = false;
+      registrar('E', "SENSOR", "falha confirmada");
+    }
+  }
+}
+
+void iniciarLcd() {
+  lcd.init();
+  lcd.backlight();
+  Wire.setWireTimeout(25000, true);
+}
+
+bool lcdPresente() {
+  Wire.beginTransmission(ENDERECO_LCD);
+  return Wire.endTransmission() == 0;
+}
+
+void escreverLinha(uint8_t linha, const char* texto) {
+  char buf[17];
+  snprintf(buf, sizeof(buf), "%-16s", texto);
+  lcd.setCursor(0, linha);
+  lcd.print(buf);
+}
+
+void atualizarLcd() {
+  if (!lcdPresente()) {
+    if (lcdOk) registrar('E', "LCD", "sem resposta no I2C");
+    lcdOk = false;
+    return;
+  }
+  if (!lcdOk) {
+    iniciarLcd();
+    lcdOk = true;
+    registrar('I', "LCD", "reconectado e reinicializado");
+  }
+  char texto[17];
+  if (sensorOk) snprintf(texto, sizeof(texto), "Dist: %u cm", ultimaBoa);
+  else          snprintf(texto, sizeof(texto), "Dist: --- cm");
+  escreverLinha(0, texto);
+  escreverLinha(1, sensorOk ? "Sensor: OK" : "Sensor: FALHA");
+}
+
+void setup() {
+  MCUSR = 0;                // WDT: limpa o motivo do último reset
+  wdt_disable();            // WDT: desligado durante a inicialização
+
+  pinMode(PINO_TRIG, OUTPUT);
+  pinMode(PINO_ECHO, INPUT);
+  Serial.begin(9600);
+  Wire.begin();
+  Wire.setWireTimeout(25000, true);
+
+  EEPROM.get(0, boots);     // WDT: quantas vezes a placa já ligou
+  if (boots == 0xFFFF) boots = 0;           // EEPROM nova vem com 0xFFFF
+  boots++;
+  EEPROM.put(0, boots);
+
+  char msg[20];
+  snprintf(msg, sizeof(msg), "boot #%u", boots);
+  registrar('I', "SISTEMA", msg);
+
+  wdt_enable(WDTO_2S);      // WDT: sem wdt_reset() por 2 s, o chip reinicia
+}
+
+void loop() {
+  unsigned long agora = millis();
+
+  if (agora - antesSensor &gt;= INTERVALO_SENSOR) {
+    antesSensor = agora;
+    lerSensor();
+  }
+  if (agora - antesLcd &gt;= INTERVALO_LCD) {
+    antesLcd = agora;
+    atualizarLcd();
+  }
+
+  // WDT: teste de travamento. Digite t no Monitor Serial e tecle Enter.
+  if (Serial.available() &amp;&amp; Serial.read() == 't') {
+    registrar('W', "TESTE", "travando o loop de proposito");
+    while (true) { }        // laço infinito: só o watchdog tira daqui
+  }
+
+  wdt_reset();              // WDT: "estou vivo", um único ponto, no fim da volta
+}</pre>
+    </div>
+    <h3>Testes</h3>
+    <ol class="steps">
+      <li><b>Travamento:</b> anote o número do boot na serial (<span class="mono">I SISTEMA: boot #N</span>). Digite <b>t</b> e tecle Enter. A serial para, e em ~2 s a placa reinicia com <span class="mono">boot #N+1</span>.</li>
+      <li><b>Alimentando no lugar errado:</b> troque <span class="mono">while (true) { }</span> por <span class="mono">while (true) { wdt_reset(); }</span>, grave e repita o teste. O que acontece agora? (É a Pergunta 3 da aula.)</li>
+      <li><b>As falhas da Parte B continuam tratadas:</b> solte o TRIG e religue o LCD. Nenhuma delas deve provocar reset: o watchdog é a última linha de defesa, não a primeira.</li>
+    </ol>
+    <div class="note warn">Se a placa ficar reiniciando sem parar logo após gravar, ela tem um bootloader antigo que não desliga o watchdog. Isso não acontece no Uno R3 original; em clones, avise o professor.</div>
+  </section>
+
+  <!-- ============ ROTEIRO + FORMULÁRIO ============ -->
+  <section id="roteiro" class="block">
+    <h2>Roteiro 5C e entrega</h2>
+    <p>Siga as etapas na ordem e registre cada uma no formulário. Suas respostas ficam salvas como rascunho neste navegador até você enviar. Use <b>Baixar PROCESSO.md</b> para guardar uma cópia das suas respostas.</p>
+
+    <div class="note warn" id="formStatus" hidden></div>
+
+    <form id="labForm" novalidate>
+      <fieldset class="step">
+        <legend>Identificação</legend>
+        <div class="fields two">
+          <label>Nome completo<input name="nome" required autocomplete="name"></label>
+          <label>E-mail institucional<input name="email" type="email" required autocomplete="email"></label>
+          <label>Turma<input name="turma" required placeholder="ex.: T26"></label>
+          <label>Grupo<input name="grupo" required placeholder="ex.: Grupo 3"></label>
+        </div>
+      </fieldset>
+
+      <fieldset class="step">
+        <legend><span class="n">1</span> Contextualizar</legend>
+        <p class="step-desc">Antes de mexer no código, escreva com suas palavras:</p>
+        <ul class="bullets">
+          <li><b>o objetivo:</b> um medidor de distância que detecta a falha do sensor e do LCD e se recupera sem intervenção;</li>
+          <li><b>o comportamento esperado:</b> leitura ruim isolada é ignorada; 3 seguidas mudam o estado para FALHA; o LCD religado volta sozinho; um travamento do loop reinicia a placa;</li>
+          <li><b>o critério de aceitação:</b> os testes de aceitação das Partes B e C (FALHA em até 2 s, LCD de volta em até 2 s sem reset, reset pelo WDT em ~2 s);</li>
+          <li><b>o que você vai delegar à IA</b> e o que pretende fazer sozinho.</li>
+        </ul>
+        <div class="fields">
+          <label>Objetivo<textarea name="ctx_objetivo" required rows="2"></textarea></label>
+          <label>Comportamento esperado<textarea name="ctx_comportamento" required rows="2"></textarea></label>
+          <label>Critério de aceitação<textarea name="ctx_criterio" required rows="2"></textarea></label>
+          <label>O que delego à IA e o que faço sozinho<textarea name="ctx_delegacao" required rows="2"></textarea></label>
+        </div>
+      </fieldset>
+
+      <fieldset class="step">
+        <legend><span class="n">2</span> Consultar</legend>
+        <p class="step-desc">Faça à IA uma pergunta <b>delimitada</b> sobre um ponto que você não domina. Uma pergunta delimitada pede explicação ou hipótese, não o código pronto. Exemplos:</p>
+        <ul class="bullets">
+          <li>“Por que <span class="mono">pulseIn()</span> pode deixar o <span class="mono">loop()</span> lento, e o que muda com o terceiro parâmetro?”</li>
+          <li>“O que significam os valores que <span class="mono">Wire.endTransmission()</span> devolve?”</li>
+          <li>“Por que alimentar o watchdog dentro de um laço de espera é um erro?”</li>
+        </ul>
+        <div class="fields">
+          <label>Ferramenta de IA usada
+            <select name="con_ferramenta" required>
+              <option value="">Selecione…</option><option>Gemini</option><option>ChatGPT</option><option>Claude</option><option>Copilot</option><option>Outra</option>
+            </select></label>
+          <label>Pergunta, exatamente como você fez<textarea name="con_pergunta" required rows="2"></textarea></label>
+          <label>Resposta da IA, resumida<textarea name="con_resposta" required rows="3"></textarea></label>
+        </div>
+      </fieldset>
+
+      <fieldset class="step">
+        <legend><span class="n">3</span> Confrontar</legend>
+        <p class="step-desc">Escolha uma afirmação técnica da resposta e confira contra uma fonte primária:</p>
+        <ul class="bullets orange">
+          <li>a documentação do <a href="https://docs.arduino.cc/language-reference/en/functions/advanced-io/pulseIn/" target="_blank" rel="noopener">pulseIn()</a> (timeout padrão de 1 s) e do <a href="https://docs.arduino.cc/language-reference/en/functions/communication/wire/endTransmission/" target="_blank" rel="noopener">Wire.endTransmission()</a> (códigos de retorno);</li>
+          <li>a documentação da avr-libc para <span class="mono">&lt;avr/wdt.h&gt;</span> (<span class="mono">wdt_enable</span>, <span class="mono">wdt_reset</span>, tempos <span class="mono">WDTO_*</span>);</li>
+          <li>o datasheet do HC-SR04: faixa de 2 a 400 cm e distância = tempo do eco ÷ 58 (em µs, para cm);</li>
+          <li>o seu próprio teste na bancada: a volta do loop, o log da serial e o contador de boots.</li>
+        </ul>
+        <p class="step-desc">Diga se a afirmação se confirmou, precisou de ajuste ou estava errada, citando o trecho da fonte ou o resultado do teste. Se você rejeitou ou corrigiu uma sugestão, ela vira o seu ADR (registro de decisão).</p>
+        <div class="fields">
+          <label>Afirmação da IA que você conferiu<textarea name="conf_afirmacao" required rows="2"></textarea></label>
+          <label>Fonte primária usada
+            <select name="conf_fonte" required>
+              <option value="">Selecione…</option><option>Documentação oficial do Arduino</option><option>Documentação da avr-libc</option><option>Datasheet do HC-SR04</option><option>Teste na bancada</option><option>Slides da Aula 3</option><option>Outra</option>
+            </select></label>
+          <label>Trecho da fonte, cálculo ou resultado que confirma/rejeita<textarea name="conf_trecho" required rows="2"></textarea></label>
+          <label>Veredito
+            <select name="conf_veredito" required>
+              <option value="">Selecione…</option><option>Confirmada</option><option>Precisou de ajuste</option><option>Estava errada</option>
+            </select></label>
+          <label>ADR: decisão tomada e justificativa <span class="opt-tag">opcional, obrigatório se ajustou/rejeitou</span><textarea name="conf_adr" rows="2"></textarea></label>
+        </div>
+      </fieldset>
+
+      <fieldset class="step">
+        <legend><span class="n">4</span> Construir</legend>
+        <p class="step-desc">Rode as três partes na bancada e registre o que você mediu e observou.</p>
+        <div class="fields two">
+          <label>Parte A · volta do loop com o sensor funcionando (ms)<input name="cons_volta_ok" type="number" step="1" min="0" required></label>
+          <label>Parte A · volta do loop com o TRIG solto (ms)<input name="cons_volta_solto" type="number" step="1" min="0" required></label>
+        </div>
+        <div class="fields" style="margin-top:14px">
+          <label>Parte A · o que aconteceu ao religar o LCD (display e serial)<textarea name="cons_lcd_a" required rows="2"></textarea></label>
+        </div>
+        <div class="fields two" style="margin-top:14px">
+          <label>Parte B · tempo entre o 1º <span class="mono">W SENSOR</span> e o <span class="mono">E SENSOR</span> no log (ms)<input name="cons_tempo_falha" type="number" step="1" min="0" required></label>
+          <label>Parte C · número do boot antes e depois do teste <b>t</b><input name="cons_boots" required placeholder="ex.: #4 → #5"></label>
+        </div>
+        <div class="fields" style="margin-top:14px">
+          <label>Parte C · o que aconteceu com <span class="mono">wdt_reset()</span> dentro do <span class="mono">while</span><textarea name="cons_wdt_errado" required rows="2"></textarea></label>
+          <label>Link do repositório ou commit<input name="cons_repo" required placeholder="https://github.com/…"></label>
+        </div>
+        <div class="checks">
+          <label class="check"><input type="checkbox" name="cons_sensor" value="sim"> Parte B: com o TRIG solto o LCD mostra FALHA, e volta a OK ao reconectar</label>
+          <label class="check"><input type="checkbox" name="cons_lcd" value="sim"> Parte B: o LCD religado volta sozinho, sem reset e sem a serial parar</label>
+          <label class="check"><input type="checkbox" name="cons_wdt" value="sim"> Parte C: o teste <b>t</b> reinicia a placa em ~2 s e o boot # aumenta</label>
+        </div>
+      </fieldset>
+
+      <fieldset class="step">
+        <legend><span class="n">5</span> Comprovar <span class="no-ai">sem IA</span></legend>
+        <p class="step-desc">Responda sozinho, sem consultar a IA. Na correção, o professor pode pedir que você explique qualquer resposta.</p>
+
+        <div class="q-block">
+          <p class="q-title">5.1 Por que o buffer de uma linha do LCD é <span class="mono">char buf[17]</span> se o display tem 16 colunas?</p>
+          <div class="radios">
+            <label><input type="radio" name="comp_buf" value="a" required> Porque o LCD tem uma coluna escondida.</label>
+            <label><input type="radio" name="comp_buf" value="b"> Porque o texto em C termina com o caractere nulo <span class="mono">'\0'</span>, que também ocupa um byte.</label>
+            <label><input type="radio" name="comp_buf" value="c"> Porque os arrays em C começam no índice 1.</label>
+            <label><input type="radio" name="comp_buf" value="d"> Porque o <span class="mono">snprintf()</span> sempre escreve um caractere a mais que o tamanho.</label>
+          </div>
+          <label class="full">Explique com suas palavras<input name="comp_buf_just" required></label>
+        </div>
+
+        <div class="q-block">
+          <p class="q-title">5.2 Com <span class="mono">TIMEOUT_ECO = 30000</span> µs e 58 µs por cm, qual é a maior distância que o código ainda consegue medir?</p>
+          <div class="fields two">
+            <label>Distância (cm)<input name="comp_dist" type="number" step="0.1" min="0" required></label>
+            <label>Cálculo<input name="comp_dist_calc" required placeholder="30000 ÷ 58 = …"></label>
+          </div>
+        </div>
+
+        <div class="q-block">
+          <p class="q-title">5.3 O sensor é lido a cada 250 ms e são precisas 3 leituras ruins seguidas. Quanto tempo passa entre a <b>primeira</b> leitura suspeita e a falha confirmada? Confira com o que você mediu na Parte B.</p>
+          <div class="fields two">
+            <label>Tempo (ms)<input name="comp_tfalha" type="number" step="1" min="0" required></label>
+            <label>Cálculo<input name="comp_tfalha_calc" required></label>
+          </div>
+        </div>
+
+        <div class="q-block">
+          <p class="q-title">5.4 Por que, com <span class="mono">while (true) { wdt_reset(); }</span>, a placa não reinicia?</p>
+          <div class="radios">
+            <label><input type="radio" name="comp_wdt" value="a" required> Porque o watchdog só funciona fora de laços.</label>
+            <label><input type="radio" name="comp_wdt" value="b"> Porque o laço continua dizendo “estou vivo” enquanto o resto do sistema está parado: o watchdog é enganado.</label>
+            <label><input type="radio" name="comp_wdt" value="c"> Porque <span class="mono">wdt_reset()</span> desliga o watchdog.</label>
+            <label><input type="radio" name="comp_wdt" value="d"> Porque 2 s é pouco tempo para o watchdog agir.</label>
+          </div>
+          <label class="full">Explique com suas palavras<input name="comp_wdt_just" required></label>
+        </div>
+
+        <div class="q-block">
+          <p class="q-title">5.5 Tarefa de transferência: alguém usa o código da <b>Parte A</b> (<span class="mono">pulseIn()</span> sem timeout) e acrescenta o watchdog com <span class="mono">wdt_enable(WDTO_500MS)</span>. O fio do TRIG solta. O que acontece?</p>
+          <div class="radios">
+            <label><input type="radio" name="comp_transf" value="a" required> Nada muda: o LCD mostra 0 cm, como antes.</label>
+            <label><input type="radio" name="comp_transf" value="b"> O LCD mostra “Sensor: FALHA”.</label>
+            <label><input type="radio" name="comp_transf" value="c"> A placa entra em um ciclo de reinícios: cada espera de 1 s pelo eco passa do limite de 0,5 s do watchdog.</label>
+            <label><input type="radio" name="comp_transf" value="d"> A placa reinicia uma vez e depois volta a funcionar normalmente.</label>
+          </div>
+          <label class="full">Como você corrigiria sem desligar o watchdog?<input name="comp_transf_just" required></label>
+        </div>
+
+        <label class="check decl"><input type="checkbox" name="decl_sem_ia" value="sim" required> Declaro que respondi a etapa Comprovar sem consultar IA.</label>
+      </fieldset>
+
+      <div class="submit-row">
+        <button type="submit" class="btn" id="btnSend">Enviar respostas</button>
+        <button type="button" class="btn blue" id="btnMd">Baixar PROCESSO.md</button>
+        <button type="button" class="btn ghost" id="btnClear">Limpar rascunho</button>
+      </div>
+      <div class="receipt" id="receipt" hidden></div>
+    </form>
+  </section>
+
+  <footer class="doc-foot">Lab 3 · Memória, Ponteiros e Robustez · Professor Doutor Roberto Cândido</footer>
+</main>
+
+<script src="config.js"></script>
+<script src="lab.js"></script>
+</body>
+</html>

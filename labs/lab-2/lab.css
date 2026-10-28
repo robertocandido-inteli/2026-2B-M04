@@ -1,0 +1,97 @@
+/* Lab — página em rolagem (reaproveita o tema da aula 2) */
+body.lab { overflow: auto; }
+.lab .topbar .btn { padding: 6px 12px; font-size: 13px; text-decoration: none; }
+.doc { max-width: 1040px; margin: 0 auto; padding: calc(var(--header-h) + 36px) 32px 64px; display: flex; flex-direction: column; gap: 56px; }
+.doc h1 { font-size: clamp(32px, 4.6vw, 56px); }
+.doc h2 { font-size: clamp(24px, 2.8vw, 34px); margin-bottom: 14px; }
+.doc h3 { margin: 18px 0 10px; }
+.doc p { margin: 0 0 12px; color: var(--text-2); }
+.doc p b, .doc li b { color: var(--text); }
+.doc a { color: var(--mint); }
+.block { scroll-margin-top: calc(var(--header-h) + 16px); }
+.hero { display: flex; flex-direction: column; gap: 16px; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px; }
+.toc { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.toc a { font-family: var(--mono); font-size: 13px; text-decoration: none; color: var(--text-2); border: 1px solid var(--border); border-radius: 999px; padding: 5px 12px; }
+.toc a:hover { border-color: var(--mint); color: var(--mint); }
+
+/* Tabelas */
+.table-wrap { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--surface-2); }
+table { border-collapse: collapse; width: 100%; font-size: 15px; }
+th, td { text-align: left; vertical-align: top; padding: 10px 14px; border-bottom: 1px solid var(--surface-2); }
+thead th { font-family: var(--mono); font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); background: var(--surface); }
+.c5 tbody th { font-family: var(--mono); color: var(--mint); white-space: nowrap; }
+.c5 td { color: var(--text-2); }
+.c5 tbody tr:last-child > * { border-bottom: 0; }
+.parts { background: var(--surface); border-radius: var(--radius); overflow: hidden; }
+.parts th { font-family: var(--mono); font-size: 12px; color: var(--muted); text-transform: uppercase; }
+.parts td:first-child { font-family: var(--mono); color: var(--orange); }
+
+.steps { margin: 0 0 16px; padding-left: 22px; color: var(--text-2); display: flex; flex-direction: column; gap: 8px; }
+
+/* Código */
+.code-box { border: 1px solid var(--surface-2); border-radius: var(--radius); overflow: hidden; margin: 12px 0; }
+.code-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 12px; background: var(--surface); font-size: 13px; color: var(--muted); }
+.code-head .btn { padding: 5px 10px; font-size: 12.5px; }
+.code-pre { margin: 0; padding: 16px 18px; background: var(--term); font-family: var(--mono); font-size: 14px; line-height: 1.65; color: var(--text-2); overflow-x: auto; white-space: pre; }
+
+/* Formulário */
+form { display: flex; flex-direction: column; gap: 20px; margin-top: 8px; }
+.step { border: 1px solid var(--surface-2); background: var(--surface); border-radius: 18px; padding: 20px 22px; margin: 0; min-width: 0; }
+.step legend { font-family: var(--mono); font-weight: 700; font-size: 18px; padding: 0 8px; display: flex; align-items: center; gap: 10px; }
+.step legend .n { width: 30px; height: 30px; border-radius: 9px; background: var(--mint); color: var(--bg); display: grid; place-items: center; font-size: 15px; }
+.no-ai { font-size: 12px; font-weight: 600; color: var(--orange); border: 1px solid var(--orange); border-radius: 999px; padding: 2px 10px; }
+.step-desc { font-size: 15.5px; }
+.step .bullets { margin-bottom: 14px; }
+.step .bullets li { font-size: 15px; }
+.fields { display: grid; gap: 14px; }
+.fields.two { grid-template-columns: 1fr 1fr; }
+label { display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: var(--text-2); }
+input:not([type=checkbox]):not([type=radio]):not([type=range]), textarea, select {
+  background: var(--plot); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font: inherit; font-size: 15px; color: var(--text); width: 100%;
+}
+textarea { resize: vertical; min-height: 64px; }
+input:focus, textarea:focus, select:focus { outline: none; border-color: var(--mint); }
+.was-validated :invalid { border-color: var(--red) !important; }
+.opt-tag { font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
+.checks { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+.check { flex-direction: row; align-items: center; gap: 10px; font-size: 15px; }
+.check input { width: 18px; height: 18px; accent-color: var(--mint); }
+.decl { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--surface-2); }
+.was-validated .check input:invalid + * , .was-validated .decl:has(input:invalid) { color: var(--red); }
+.q-block { padding: 14px 0; border-top: 1px solid var(--surface-2); }
+.q-block:first-of-type { border-top: 0; }
+.q-title { color: var(--text) !important; font-weight: 500; }
+.radios { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+.radios label { flex-direction: row; align-items: flex-start; gap: 10px; font-size: 15px; background: var(--plot); border: 1px solid var(--surface-2); border-radius: 10px; padding: 10px 12px; cursor: pointer; }
+.radios label:has(input:checked) { border-color: var(--mint); }
+.radios input { margin-top: 3px; accent-color: var(--mint); }
+.was-validated .radios:has(input:invalid) label { border-color: rgba(255, 93, 93, .6); }
+.full { margin-top: 4px; }
+.submit-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.submit-row .btn { padding: 11px 18px; font-size: 15px; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.receipt { border: 1px solid var(--mint); background: rgba(128, 230, 198, .08); border-radius: var(--radius); padding: 16px 18px; color: var(--text-2); font-size: 15px; }
+.receipt.err { border-color: var(--red); background: rgba(255, 93, 93, .08); }
+.receipt b { color: var(--text); }
+.doc-foot { font-family: var(--mono); font-size: 12px; color: var(--muted); text-align: center; }
+
+@media (max-width: 760px) {
+  .doc { padding: calc(var(--header-h) + 20px) 16px 48px; gap: 40px; }
+  .fields.two { grid-template-columns: 1fr; }
+  .step { padding: 16px 14px; }
+}
+
+/* Lab 2 — fórmulas, simulação RC e comparação */
+.lab .doc .sim { margin: 8px 0; }
+.formula-box { background: var(--surface); border: 1px solid var(--surface-2); border-radius: var(--radius); padding: 14px 16px; }
+.formula-box p { margin: 0 0 6px; font-size: 15px; }
+.formula-box p:last-child { margin: 0; }
+.controls.three { grid-template-columns: repeat(3, 1fr); }
+.cmp tbody th { font-family: var(--mono); color: var(--mint); white-space: nowrap; font-weight: 600; }
+.cmp td { color: var(--text-2); }
+.cmp tbody tr:last-child > * { border-bottom: 0; }
+#rcVerdict b { color: var(--mint); }
+#rcVerdict .bad { color: var(--red); }
+#rcVerdict .warn { color: var(--orange); }
+@media (max-width: 760px) { .controls.three { grid-template-columns: 1fr; } }
