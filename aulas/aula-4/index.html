@@ -1,0 +1,881 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sensores: como o ESP32 sente o mundo</title>
+<meta name="description" content="Aula 4 — Os sensores mais usados em sistemas embarcados: como funcionam por dentro, onde são usados e como o ESP32 lê cada um. Entradas analógicas e digitais, ADC do ESP32, LDR com ponte de Wheatstone, NTC/PTC, sensor de gás, PIR, ultrassom, DHT22, DS18B20 e requisitos não funcionais.">
+<link rel="icon" href="assets/img/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<script src="js/theme.js"></script>
+</head>
+<body>
+
+<header class="topbar">
+  <img class="logo" src="assets/img/logo.png" alt="Inteli">
+  <div class="deck-title"><b>Aula 4</b> · Sensores: como o ESP32 sente o mundo</div>
+  <span class="spacer"></span>
+  <a class="btn ghost back-link" href="../../aulas/aula-3/index.html" title="Voltar para a Aula 3">← Aula 3</a>
+  <nav class="nav" aria-label="Navegação dos slides">
+    <button class="icon-btn" id="btnPrev" title="Anterior (←)" aria-label="Slide anterior"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button>
+    <span class="counter" id="counter">1 / 26</span>
+    <button class="icon-btn" id="btnNext" title="Próximo (→)" aria-label="Próximo slide"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+    <button class="icon-btn" id="btnGrid" title="Visão geral (G)" aria-label="Visão geral"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></svg></button>
+    <button class="icon-btn theme-btn" id="btnTheme" title="Tema claro/escuro (T)" aria-label="Alternar tema claro/escuro"><svg class="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><svg class="i-moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+    <button class="icon-btn" id="btnFull" title="Tela cheia (F)" aria-label="Tela cheia"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+  </nav>
+</header>
+<div class="progress" id="progress"></div>
+<div class="overview" id="overview" aria-hidden="true"><div class="grid" id="overviewGrid"></div></div>
+
+<main class="deck" id="deck">
+
+<!-- ============ 1. CAPA ============ -->
+<section class="slide cover" data-title="Sensores: como o ESP32 sente o mundo" data-section="Introdução">
+  <svg class="traces" data-sim="traces" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true"></svg>
+  <div class="wrap">
+    <p class="kicker">Aula 4 · Sistemas embarcados</p>
+    <h1>Sensores: como o ESP32<br><span>sente o mundo</span></h1>
+    <p class="lead">Luz, calor, gás, movimento, distância. Cada sensor traduz uma grandeza física em um sinal elétrico. Vamos abrir os sensores mais usados, ver como funcionam por dentro e como o ESP32 lê cada um.</p>
+    <div class="agenda" style="grid-template-columns:repeat(2,minmax(0,1fr));max-width:640px">
+      <div><b>Entradas</b>Analógico × digital e o ADC do ESP32</div>
+      <div><b>Analógicos</b>LDR, ponte de Wheatstone, NTC/PTC, gás</div>
+      <div><b>Digitais</b>Reed, PIR, ultrassom, DHT22, DS18B20</div>
+      <div style="border-color:var(--red)"><b>Requisitos</b>O que torna um monitoramento bom</div>
+    </div>
+    <p class="author">Professor Doutor Roberto Cândido</p>
+    <p class="start-hint"><span class="kbd">→</span> ou <span class="kbd">espaço</span> para avançar · <span class="kbd">G</span> visão geral · <span class="kbd">F</span> tela cheia</p>
+  </div>
+</section>
+
+<!-- ============ 2. O QUE É UM SENSOR ============ -->
+<section class="slide" data-title="O que é um sensor" data-section="Introdução">
+  <div class="wrap">
+    <p class="kicker">Introdução</p>
+    <h2>O que é um sensor?</h2>
+    <p class="def" style="font-size:18px">Um sensor é um <b>tradutor</b>: converte uma grandeza física (luz, temperatura, gás, distância) em um <b>sinal elétrico</b> que o microcontrolador consegue ler.</p>
+    <p class="lead sm">O ESP32 não enxerga, não sente calor nem cheiro. Os sensores são os sentidos dele:</p>
+    <div class="senses">
+      <div><div class="big">👁️</div><b>visão</b><span>LDR, fotodiodo</span></div>
+      <div><div class="big">🌡️</div><b>calor</b><span>NTC, DS18B20, DHT22</span></div>
+      <div><div class="big">👃</div><b>olfato</b><span>sensor de gás MQ</span></div>
+      <div><div class="big">👂</div><b>audição</b><span>microfone, ultrassom</span></div>
+      <div><div class="big">✋</div><b>tato</b><span>botão, chave, reed</span></div>
+    </div>
+    <div class="chain" style="grid-template-columns:repeat(5,minmax(0,1fr))">
+      <div><b>Grandeza</b><p>o que existe no mundo: luz, calor, gás</p></div>
+      <div><b>Sensor</b><p>muda algo elétrico: resistência, tensão, pulso</p></div>
+      <div><b>Sinal</b><p>uma tensão no pino, ou um número enviado por fio</p></div>
+      <div><b>ESP32</b><p>lê, converte em unidade, decide</p></div>
+      <div><b>Ação</b><p>acende, alarma, registra, envia pela rede</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 3. ONDE ESTÃO OS SENSORES ============ -->
+<section class="slide" data-title="Onde estão os sensores: aplicações" data-section="Introdução">
+  <div class="wrap">
+    <p class="kicker">Introdução</p>
+    <h2>Sensores estão em todo lugar</h2>
+    <div class="cards three">
+      <div class="card tight mint"><h3>Casa</h3><ul>
+        <li>Luz da garagem que acende sozinha (LDR)</li>
+        <li>Alarme que percebe movimento (PIR)</li>
+        <li>Detector de vazamento de gás (MQ-2)</li>
+        <li>Sensor de porta aberta (reed + ímã)</li></ul></div>
+      <div class="card tight blue"><h3>Celular</h3><ul>
+        <li>A tela gira quando o aparelho vira (acelerômetro)</li>
+        <li>O brilho se ajusta ao ambiente (sensor de luz)</li>
+        <li>A tela apaga encostada no ouvido (proximidade)</li></ul></div>
+      <div class="card tight orange"><h3>Carro</h3><ul>
+        <li>Bipe do estacionamento (ultrassom)</li>
+        <li>Temperatura do motor (NTC)</li>
+        <li>Limpador que liga com a chuva (sensor óptico)</li></ul></div>
+      <div class="card tight yellow"><h3>Agricultura</h3><ul>
+        <li>Irrigação quando o solo seca (umidade do solo)</li>
+        <li>Estufa com temperatura e umidade do ar (DHT22)</li>
+        <li>Nível da caixa d’água (ultrassom, boia)</li></ul></div>
+      <div class="card tight red"><h3>Indústria</h3><ul>
+        <li>Temperatura de fornos e câmaras frias (DS18B20, Pt100)</li>
+        <li>Vibração de motores para prever falhas (acelerômetro)</li>
+        <li>Gases perigosos no ambiente</li></ul></div>
+      <div class="card tight blue"><h3>Saúde</h3><ul>
+        <li>Termômetro digital de febre (NTC)</li>
+        <li>Pulseira que conta passos (acelerômetro)</li>
+        <li>Oxímetro de dedo (LED + fotodetector)</li></ul></div>
+    </div>
+    <div class="note">Em todos os casos o padrão é o mesmo: <b>medir → decidir → agir</b>. O que muda é o sensor. Nesta aula, vamos conhecer os mais usados com ESP32.</div>
+  </div>
+</section>
+
+<!-- ============ 4. ANALÓGICO × DIGITAL ============ -->
+<section class="slide" data-title="Sinal analógico × sinal digital" data-section="Entradas">
+  <div class="wrap">
+    <p class="kicker">Entradas do ESP32</p>
+    <h2>Analógico × digital</h2>
+    <div class="grid-2 even">
+      <div class="stack" style="gap:12px">
+        <div class="card tight mint"><h3>Analógico · como um dimmer</h3>
+          <p>Pode assumir <b>qualquer valor</b> entre o mínimo e o máximo. A tensão no pino “desliza” junto com a grandeza.</p>
+          <span class="ex">LDR, NTC, potenciômetro, sensor de gás · analogRead() → 0 a 4095</span></div>
+        <div class="card tight orange"><h3>Digital · como um interruptor</h3>
+          <p>Só dois estados: <b>ligado ou desligado</b>. O sensor já decidiu se “tem” ou “não tem”.</p>
+          <span class="ex">botão, reed, PIR, saída DO dos módulos · digitalRead() → 0 ou 1</span></div>
+        <div class="card tight blue"><h3>Digital com protocolo · o número pronto</h3>
+          <p>Alguns sensores têm um pequeno chip dentro: eles mesmos medem e <b>mandam o número</b> pelo fio, em bits.</p>
+          <span class="ex">DHT22, DS18B20, BME280, MPU6050 · biblioteca</span></div>
+      </div>
+      <div class="sim" data-sim="anadig">
+        <div class="sim-head"><span class="sim-title">A mesma grandeza, dois jeitos de ler</span></div>
+        <canvas data-c="plot" height="250"></canvas>
+        <div class="stats">
+          <div class="stat mint"><span>analogRead()</span><b data-o="a">–</b></div>
+          <div class="stat orange"><span>digitalRead()</span><b data-o="d">–</b></div>
+        </div>
+        <p class="hint">O digital só conta se a grandeza está acima ou abaixo do limiar. O analógico conta <b>quanto</b>.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 5. ADC ============ -->
+<section class="slide" data-title="ADC: como o ESP32 transforma tensão em número" data-section="Entradas">
+  <div class="wrap">
+    <p class="kicker">Entradas do ESP32</p>
+    <h2>ADC: de tensão para número</h2>
+    <div class="grid-2 wide-right">
+      <div class="stack" style="gap:12px">
+        <p class="def">O <b>ADC</b> (conversor analógico-digital) funciona como uma <b>régua</b>: compara a tensão do pino com uma escala de degraus e devolve o número do degrau.</p>
+        <table class="ttable">
+          <thead><tr><th>Resolução</th><th>Degraus</th><th>Cada degrau (3,3 V)</th></tr></thead>
+          <tbody>
+            <tr><td>3 bits</td><td>8</td><td>≈ 412 mV</td></tr>
+            <tr><td>10 bits · Uno</td><td>1.024</td><td>≈ 4,9 mV (em 5 V)</td></tr>
+            <tr><td>12 bits · ESP32</td><td class="diff">4.096</td><td>≈ 0,8 mV</td></tr>
+          </tbody>
+        </table>
+        <ul class="bullets small">
+          <li><b>0 V</b> no pino → leitura <b>0</b>; <b>3,3 V</b> → <b>4095</b>.</li>
+          <li>Mais bits = régua com mais marcas = mais detalhe.</li>
+          <li>Tudo que fica entre duas marcas vira o mesmo número: o sensor pode mudar um pouco sem a leitura mudar.</li>
+        </ul>
+      </div>
+      <div class="sim" data-sim="adc">
+        <div class="sim-head"><span class="sim-title">Régua do ADC</span>
+          <div class="seg" data-seg="bits"><button data-v="3" aria-pressed="true">3 bits</button><button data-v="12" aria-pressed="false">12 bits (ESP32)</button></div></div>
+        <canvas data-c="plot" height="220"></canvas>
+        <div class="ctl"><label for="adV">Tensão no pino</label><output data-o="v"></output><input id="adV" type="range" min="0" max="3.3" step="0.01" value="1.2" data-in="v"></div>
+        <div class="grid-2 even" style="gap:12px">
+          <div class="readout"><span class="muted">analogRead()</span><br><span class="big" data-o="n">–</span> <span class="muted">de 0 a <span data-o="max"></span></span></div>
+          <div class="readout"><span class="muted">em binário · degrau <span data-o="step"></span></span><div class="adc-bits" data-o="bits" style="margin-top:6px"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 6. ADC DO ESP32 NA PRÁTICA ============ -->
+<section class="slide" data-title="O ADC do ESP32 na prática" data-section="Entradas">
+  <div class="wrap">
+    <p class="kicker">Entradas do ESP32</p>
+    <h2>O ADC do ESP32 na prática</h2>
+    <div class="grid-2 even">
+      <div class="stack" style="gap:12px">
+        <table class="cmp sm">
+          <thead><tr><th>Bloco</th><th>Pinos</th><th>Cuidado</th></tr></thead>
+          <tbody>
+            <tr><td>ADC1</td><td class="n">GPIO 32, 33, 34, 35, 36 (VP), 39 (VN)</td><td class="n g">use estes: funcionam com Wi‑Fi</td></tr>
+            <tr><td>ADC2</td><td class="n">GPIO 0, 2, 4, 12–15, 25–27</td><td class="n b">não leem com o Wi‑Fi ligado; 0, 2, 12 e 15 atrapalham o boot</td></tr>
+          </tbody>
+        </table>
+        <div class="card tight orange"><h3>A régua não é perfeita</h3>
+          <p>Com a configuração padrão (atenuação de 11 dB), o ADC do ESP32 é confiável entre <b>~0,15 V e ~2,45 V</b>. Abaixo disso lê 0; acima, os números ficam “espremidos” até travar em 4095 por volta de 3,1 V.</p></div>
+        <div class="note warn">Nunca passe de <b>3,3 V</b> no pino. Sensor alimentado em 5 V precisa de divisor de tensão na saída.</div>
+      </div>
+      <div class="stack" style="gap:12px">
+        <pre class="code sm" data-hl="4,8">
+const int PINO = 34;   // ADC1 · pinos 34 a 39 são só entrada
+
+void setup() {
+  analogSetPinAttenuation(PINO, ADC_11db);  // faixa ~0,15–2,45 V
+}
+void loop() {
+  int bruto = analogRead(PINO);             // 0 .. 4095
+  int mv    = analogReadMilliVolts(PINO);   // mV, já corrigido
+  Serial.printf("bruto=%d  %d mV\n", bruto, mv);
+  delay(500);
+}</pre>
+        <ul class="bullets small">
+          <li>Prefira <code>analogReadMilliVolts()</code>: ela usa a calibração gravada de fábrica em cada chip.</li>
+          <li>A leitura oscila ±10 a 20 números. Tire a <b>média</b> de várias leituras e ponha um capacitor de 100 nF entre o pino e o GND.</li>
+          <li>Projete o circuito para o sinal do sensor ficar <b>dentro da faixa confiável</b>.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 7. DIVISOR DE TENSÃO ============ -->
+<section class="slide" data-title="Divisor de tensão: lendo sensores que mudam de resistência" data-section="Entradas">
+  <div class="wrap">
+    <p class="kicker">Entradas do ESP32</p>
+    <h2>Sensor que muda de resistência</h2>
+    <div class="grid-2 wide-right">
+      <figure class="stack" style="gap:6px;align-items:center">
+        <svg viewBox="0 0 230 270" role="img" aria-label="Divisor de tensão: sensor em cima, resistor fixo embaixo, ponto central no GPIO 34" style="width:100%;max-width:260px">
+          <g fill="none" style="stroke:var(--wire)" stroke-width="2.5">
+            <path d="M80 30 V60 M80 120 V170 M80 230 V250 M80 145 H150"/>
+            <rect x="66" y="60" width="28" height="60" rx="5" style="stroke:var(--orange);fill:var(--plot)"/>
+            <rect x="66" y="170" width="28" height="60" rx="5" style="stroke:var(--blue);fill:var(--plot)"/>
+            <path d="M64 250 H96 M70 257 H90 M76 264 H84"/>
+            <circle cx="80" cy="145" r="4" style="fill:var(--wire)"/>
+          </g>
+          <g font-family="IBM Plex Mono, monospace" font-size="12">
+            <text x="80" y="22" text-anchor="middle" style="fill:var(--text)">3,3 V</text>
+            <text x="104" y="86" style="fill:var(--orange)">sensor</text>
+            <text x="104" y="102" style="fill:var(--muted)">(LDR, NTC, gás)</text>
+            <text x="104" y="198" style="fill:var(--blue)">R fixo</text>
+            <text x="104" y="214" style="fill:var(--muted)">(10 kΩ)</text>
+            <text x="156" y="141" style="fill:var(--mint)">GPIO 34</text>
+          </g>
+        </svg>
+        <p class="def" style="font-family:var(--mono);font-size:14.5px">V = 3,3 · R<sub>fixo</sub> / (R<sub>sensor</sub> + R<sub>fixo</sub>)</p>
+      </figure>
+      <div class="stack" style="gap:12px">
+        <p class="def orange">Muitos sensores (LDR, NTC, gás) não geram tensão: eles <b>mudam de resistência</b>. Mas o ESP32 só mede <b>tensão</b>. O truque é o <b>divisor de tensão</b>.</p>
+        <ol class="how">
+          <li>O sensor fica em série com um <b>resistor fixo</b>, entre 3,3 V e GND.</li>
+          <li>A tensão de 3,3 V se divide entre os dois, <b>na proporção das resistências</b>.</li>
+          <li>Quando a resistência do sensor muda, a tensão no ponto do meio muda junto. Esse ponto vai para o pino do ADC.</li>
+        </ol>
+        <p class="analogy">Como dois canos em série: o mais “apertado” fica com a maior parte da pressão.</p>
+        <ul class="bullets small">
+          <li>Escolha o R fixo perto da resistência do sensor <b>no meio da faixa</b> que interessa. É onde a leitura varia mais.</li>
+          <li>Alimente com <b>3,3 V</b>: assim a tensão nunca passa do que o pino aguenta.</li>
+          <li>Trocar sensor e resistor de lugar <b>inverte</b> o sentido da leitura.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PEER INSTRUCTION 1 ============ -->
+<section class="slide pi" data-title="Pergunta: o LDR parou com o Wi-Fi" data-section="Peer Instruction">
+  <div class="wrap">
+    <p class="kicker">Peer Instruction · Pergunta 1 de 3</p>
+    <h2>O LDR parou com o Wi‑Fi</h2>
+    <p class="lead">Um protótipo lê um LDR no <b>GPIO 4</b> e funciona há semanas. Para enviar os dados à nuvem, alguém acrescenta <code>WiFi.begin()</code>. A partir daí, <code>analogRead(4)</code> deixa de devolver leituras válidas. O que mudou?</p>
+    <div class="pi-opts">
+      <div class="opt"><span class="letter">A</span><p>O sinal de rádio do Wi‑Fi altera a resistência do LDR</p></div>
+      <div class="opt" data-ok><span class="letter">B</span><p>O GPIO 4 pertence ao ADC2, que fica reservado para o Wi‑Fi</p></div>
+      <div class="opt"><span class="letter">C</span><p><code>WiFi.begin()</code> muda a resolução do ADC para 10 bits</p></div>
+      <div class="opt"><span class="letter">D</span><p>O consumo do Wi‑Fi derruba a tensão de 3,3 V para perto de 0</p></div>
+    </div>
+    <div class="pi-foot">
+      <p class="pi-steps">1º voto individual → discuta com um colega → 2º voto</p>
+      <button class="btn" data-pi-reveal>Revelar resposta</button>
+    </div>
+    <div class="note ok pi-exp">No ESP32, o Wi‑Fi usa o ADC2. Com o rádio ligado, os pinos do ADC2 (0, 2, 4, 12–15, 25–27) não fazem leitura analógica. A correção é mudar o sensor para um pino do <b>ADC1</b> (GPIO 32–39). O Wi‑Fi também aumenta o ruído, mas isso não faz a leitura falhar sempre.</div>
+  </div>
+</section>
+
+<!-- ============ 9. LDR ============ -->
+<section class="slide" data-title="LDR: o sensor de luz" data-section="Sensores analógicos">
+  <div class="wrap">
+    <p class="kicker orange">Sensores analógicos</p>
+    <h2>LDR: o sensor de luz</h2>
+    <div class="grid-2 wide-right">
+      <div class="stack" style="gap:12px">
+        <figure class="pic"><img src="assets/img/ldr.jpg" alt="Fotorresistor LDR: disco com trilha laranja em zigue-zague" style="height:150px"><figcaption>Foto: Raimond Spekking · CC BY-SA 4.0 · Wikimedia Commons</figcaption></figure>
+        <ol class="how">
+          <li>A trilha laranja em zigue-zague é de <b>sulfeto de cádmio</b>, um semicondutor.</li>
+          <li>No escuro, ele tem poucos elétrons livres: <b>resistência alta</b> (~1 MΩ).</li>
+          <li>A luz “arranca” elétrons dos átomos. Livres, eles conduzem corrente: <b>resistência baixa</b> (&lt; 1 kΩ).</li>
+        </ol>
+        <div class="apps"><span>poste que acende sozinho</span><span>luz noturna</span><span>alarme de feixe de laser</span><span>robô que segue a luz</span></div>
+      </div>
+      <div class="stack" style="gap:12px">
+        <div class="sim" data-sim="ldr">
+          <div class="sim-head"><span class="sim-title">Dentro do LDR · em divisor com 10 kΩ</span><span class="pill info" data-o="amb"></span></div>
+          <svg class="stage" viewBox="0 0 520 250" role="img" aria-label="Luz incidindo sobre o LDR e liberando elétrons na trilha; um poste acende quando escurece" style="max-height:250px"></svg>
+          <div class="ctl"><label for="ldL">Luz ambiente</label><output data-o="l"></output><input id="ldL" type="range" min="-1" max="4" step="0.01" value="2" data-in="l"></div>
+        </div>
+        <pre class="code sm" data-hl="3,4">
+int luz = analogRead(34);           // mais luz → número maior
+// dois limiares (histerese): a lâmpada não pisca no entardecer
+if (!noite &amp;&amp; luz &lt; 1500) noite = true;
+if ( noite &amp;&amp; luz &gt; 1800) noite = false;
+digitalWrite(LAMPADA, noite);</pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 10. PONTE DE WHEATSTONE ============ -->
+<section class="slide" data-title="LDR em ponte de Wheatstone" data-section="Sensores analógicos">
+  <div class="wrap">
+    <p class="kicker orange">Sensores analógicos</p>
+    <h2>Ponte de Wheatstone com LDR</h2>
+    <div class="grid-2 wide-right">
+      <div class="stack" style="gap:12px">
+        <p class="def orange">São <b>dois divisores lado a lado</b>: um com o LDR, outro com um resistor de ajuste (potenciômetro). Em vez de olhar uma tensão sozinha, olhamos a <b>diferença</b> entre os dois pontos do meio.</p>
+        <p class="analogy">Como uma balança de dois pratos: não importa quanto cada prato pesa, só para que lado ela pende.</p>
+        <ol class="how">
+          <li><b>Equilíbrio</b>: com R<sub>LDR</sub> = R<sub>ajuste</sub>, os dois lados têm a mesma tensão e a diferença é 0.</li>
+          <li>A luz muda → o LDR muda → a ponte <b>desequilibra</b> para um lado ou para o outro.</li>
+          <li>Se a fonte oscilar, os dois lados oscilam juntos e a diferença quase não muda.</li>
+        </ol>
+        <div class="note">É o que existe nos módulos de luz, chuva e gás com saída <b>DO</b>: o potenciômetro azul é o lado de referência, e um <b>comparador</b> (LM393) liga a saída quando a ponte pende para um lado. Balanças digitais usam a mesma ideia com o HX711.</div>
+      </div>
+      <div class="sim" data-sim="bridge">
+        <div class="sim-head"><span class="sim-title">Ponte com LDR · R1 = R3 = 10 kΩ</span>
+          <button class="btn orange sm" data-act="ripple" aria-pressed="false">Fonte oscilando ±8 %</button></div>
+        <svg class="stage" viewBox="0 0 440 250" role="img" aria-label="Ponte de Wheatstone com LDR no braço esquerdo e resistor ajustável no direito" style="max-height:240px"></svg>
+        <canvas data-c="plot" height="120"></canvas>
+        <div class="controls two">
+          <div class="ctl"><label for="brL">Luz sobre o LDR</label><output data-o="l"></output><input id="brL" type="range" min="0" max="4" step="0.01" value="1.3" data-in="l"></div>
+          <div class="ctl"><label for="brR">R ajuste (potenciômetro)</label><output data-o="r"></output><input id="brR" type="range" min="3" max="5.5" step="0.01" value="3.6" data-in="r"></div>
+        </div>
+        <p class="hint">Gire o potenciômetro até V<sub>d</sub> ≈ 0 e ligue a oscilação da fonte: V<sub>A</sub> oscila, V<sub>d</sub> quase não. Depois mude a luz.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 11. NTC E PTC ============ -->
+<section class="slide" data-title="Termistores NTC e PTC: como funcionam" data-section="Sensores analógicos">
+  <div class="wrap">
+    <p class="kicker orange">Sensores analógicos</p>
+    <h2>Termistores: NTC e PTC</h2>
+    <div class="grid-2 wide-right">
+      <div class="stack" style="gap:12px">
+        <figure class="pic"><img src="assets/img/ntc.jpg" alt="Termistor NTC em gota, com dois fios azuis" style="height:130px"><figcaption>NTC em gota · Foto: Ansgar Hellwig · CC BY-SA 2.0 DE · Wikimedia Commons</figcaption></figure>
+        <p class="def">Um <b>termistor</b> é um resistor cuja resistência muda bastante com a <b>temperatura</b>. Barato, pequeno e muito usado.</p>
+        <div class="card tight blue"><h3>NTC · esquentou, R cai</h3><p>Feito de óxidos semicondutores. Muito sensível. É o mais comum para medir: 10 kΩ a 25 °C.</p>
+          <div class="apps"><span>termômetro de febre</span><span>geladeira</span><span>ar-condicionado</span><span>bateria de celular</span><span>impressora 3D</span></div></div>
+        <div class="card tight orange"><h3>PTC · esquentou, R sobe</h3><p>Metal (Pt100, Pt1000): quase linear e estável, usado na indústria. Cerâmico: salta de resistência de repente, usado como <b>fusível rearmável</b>.</p></div>
+      </div>
+      <div class="sim" data-sim="ntc">
+        <div class="sim-head"><span class="sim-title">Por dentro do termistor</span>
+          <div class="seg" data-seg="tipo"><button data-v="ntc" aria-pressed="true">NTC</button><button data-v="ptc" aria-pressed="false">PTC de metal</button></div></div>
+        <svg class="stage" viewBox="0 0 520 220" role="img" aria-label="Átomos vibrando e elétrons livres atravessando o material do termistor" style="max-height:250px"></svg>
+        <div class="ctl"><label for="ntT">Temperatura</label><output data-o="t"></output><input id="ntT" type="range" min="-20" max="100" step="1" value="25" data-in="t"></div>
+        <p class="step-caption" data-o="desc"></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 12. NTC NO ESP32 ============ -->
+<section class="slide" data-title="Lendo um NTC no ESP32" data-section="Sensores analógicos">
+  <div class="wrap">
+    <p class="kicker orange">Sensores analógicos</p>
+    <h2>Lendo um NTC no ESP32</h2>
+    <div class="grid-2 even">
+      <div class="stack" style="gap:12px">
+        <p class="lead sm">NTC de 10 kΩ em cima, resistor de 10 kΩ embaixo. O que o ESP32 vê:</p>
+        <table class="cmp">
+          <thead><tr><th>Temperatura</th><th>R do NTC</th><th>Tensão</th><th>analogRead</th></tr></thead>
+          <tbody>
+            <tr><td>0 °C</td><td class="n">33,6 kΩ</td><td class="n">0,76 V</td><td class="n">~940</td></tr>
+            <tr><td>25 °C</td><td class="n">10,0 kΩ</td><td class="n">1,65 V</td><td class="n">~2050</td></tr>
+            <tr><td>50 °C</td><td class="n">3,6 kΩ</td><td class="n">2,43 V</td><td class="n">~3010</td></tr>
+            <tr><td>100 °C</td><td class="n">0,7 kΩ</td><td class="n b">3,08 V</td><td class="n b">fora da faixa confiável</td></tr>
+          </tbody>
+        </table>
+        <ul class="bullets small">
+          <li>A relação <b>não é uma reta</b>: de 0 a 25 °C a leitura sobe ~1100; de 25 a 50 °C, ~960. Por isso usamos uma fórmula, não uma regra de três.</li>
+          <li>Para medir perto de 100 °C, troque o resistor fixo por um menor (2,2 kΩ): a tensão volta para a faixa confiável.</li>
+        </ul>
+      </div>
+      <div class="stack" style="gap:12px">
+        <pre class="code sm" data-hl="7,8,9">
+const float R_FIXO = 10000, R25 = 10000, BETA = 3950;
+
+float lerTemperatura() {
+  float v = analogReadMilliVolts(34) / 1000.0;  // volts
+  if (v &lt; 0.15 || v &gt; 2.45) return NAN;        // fora da faixa
+  float r = R_FIXO * (3.3 - v) / v;             // resistência do NTC
+  // equação Beta: resistência → temperatura (kelvin)
+  float invT = 1.0 / 298.15 + log(r / R25) / BETA;
+  return 1.0 / invT - 273.15;                   // °C
+}</pre>
+        <p class="hint">BETA (3950) vem do datasheet do NTC: diz o quanto ele é sensível.</p>
+        <div class="note ok"><b>Calibre</b>: meça o sensor em água com gelo (0 °C) e compare com um termômetro de referência em outra temperatura. Corrija o código com esses dois pontos.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 13. SENSOR DE GÁS ============ -->
+<section class="slide" data-title="Sensor de gás MQ: como funciona" data-section="Sensores analógicos">
+  <div class="wrap">
+    <p class="kicker orange">Sensores analógicos</p>
+    <h2>Sensor de gás (série MQ)</h2>
+    <div class="grid-2 wide-right">
+      <div class="stack" style="gap:12px">
+        <p class="def orange">Por fora, um cilindro com tela de metal. Por dentro, uma camada de <b>óxido de estanho</b> e um pequeno <b>aquecedor</b>.</p>
+        <ol class="how">
+          <li>O aquecedor deixa a camada <b>bem quente</b> (centenas de graus).</li>
+          <li>No ar limpo, o <b>oxigênio</b> gruda na superfície e “prende” elétrons: <b>resistência alta</b>.</li>
+          <li>Um gás como GLP, metano, álcool ou fumaça <b>reage</b> com esse oxigênio e devolve os elétrons: <b>resistência cai</b>.</li>
+          <li>O módulo transforma isso em tensão: saída <b>AO</b> (analógica) e <b>DO</b> (liga acima de um limiar ajustável).</li>
+        </ol>
+        <table class="cmp sm">
+          <thead><tr><th>Modelo</th><th>Detecta</th><th>Uso típico</th></tr></thead>
+          <tbody>
+            <tr><td>MQ-2</td><td class="n">GLP, propano, fumaça</td><td class="n">vazamento de gás de cozinha</td></tr>
+            <tr><td>MQ-3</td><td class="n">álcool</td><td class="n">bafômetro de protótipo</td></tr>
+            <tr><td>MQ-7</td><td class="n">monóxido de carbono</td><td class="n">garagem, aquecedor a gás</td></tr>
+            <tr><td>MQ-135</td><td class="n">amônia, benzeno, fumaça</td><td class="n">qualidade do ar</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="stack" style="gap:12px">
+        <div class="sim" data-sim="mq">
+          <div class="sim-head"><span class="sim-title">Por dentro do sensor de gás</span>
+            <div class="btn-row"><button class="btn orange sm" data-act="gas" aria-pressed="false">Liberar gás</button><button class="btn ghost sm" data-act="heat" aria-pressed="false">Desligar aquecedor</button></div></div>
+          <svg class="stage" viewBox="0 0 520 250" role="img" aria-label="Moléculas de gás reagem com o oxigênio na camada aquecida e liberam elétrons" style="max-height:270px"></svg>
+          <p class="hint">Vermelho: oxigênio preso na superfície. Verde: moléculas de gás. Azul: elétrons livres na camada. Teste também com o aquecedor desligado.</p>
+        </div>
+        <div class="note warn">O aquecedor consome ~150 mA em <b>5 V</b> o tempo todo, e a saída AO pode chegar a 5 V: use um divisor antes do pino do ESP32. Sensores MQ servem para protótipos; um detector que protege pessoas precisa ser <b>certificado</b>.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PEER INSTRUCTION 2 ============ -->
+<section class="slide pi" data-title="Pergunta: o alarme que dispara ao ligar" data-section="Peer Instruction">
+  <div class="wrap">
+    <p class="kicker">Peer Instruction · Pergunta 2 de 3</p>
+    <h2>O alarme que dispara ao ligar</h2>
+    <p class="lead">Um detector com MQ-2 funciona bem durante o dia. Mas, toda vez que a placa é ligada, o alarme dispara por alguns minutos, <b>sem nenhum gás no ambiente</b>, e depois para sozinho. Qual a explicação mais provável?</p>
+    <div class="pi-opts">
+      <div class="opt"><span class="letter">A</span><p>O sensor está com defeito e precisa ser trocado</p></div>
+      <div class="opt" data-ok><span class="letter">B</span><p>A camada ainda está esquentando, e a leitura só fica estável depois do aquecimento</p></div>
+      <div class="opt"><span class="letter">C</span><p>O Wi‑Fi se conectando atrapalha a leitura do ADC1</p></div>
+      <div class="opt"><span class="letter">D</span><p>Ao ligar, o ar da sala ainda tem resto de gás da véspera</p></div>
+    </div>
+    <div class="pi-foot">
+      <p class="pi-steps">1º voto individual → discuta com um colega → 2º voto</p>
+      <button class="btn" data-pi-reveal>Revelar resposta</button>
+    </div>
+    <div class="note ok pi-exp">O sensor só funciona na temperatura certa. Logo depois de ligar, a camada ainda está aquecendo e a resistência fica longe do valor de ar limpo, o que parece “muito gás”. A solução é de firmware: <b>ignorar as leituras durante o aquecimento</b> (alguns minutos). Na primeira vez que o sensor é usado, ele precisa de 24 a 48 h ligado para estabilizar.</div>
+  </div>
+</section>
+
+<!-- ============ 15. ALARME DE GÁS ============ -->
+<section class="slide" data-title="Do sensor de gás a um alarme confiável" data-section="Sensores analógicos">
+  <div class="wrap">
+    <p class="kicker orange">Sensores analógicos · monitoramento automatizado</p>
+    <h2>De leitura a alarme confiável</h2>
+    <div class="grid-2 wide-right">
+      <div class="stack" style="gap:12px">
+        <p class="lead sm">Um simples <code>if (ppm &gt; LIMITE)</code> dispara ao ligar e fica ligando e desligando perto do limite. Três regras resolvem:</p>
+        <ol class="how">
+          <li><b>Aquecimento</b>: ignore as leituras até o sensor estabilizar.</li>
+          <li><b>Confirmação</b>: só alarme se ficar acima do limite por alguns segundos seguidos.</li>
+          <li><b>Histerese</b>: liga em 1000 ppm, desliga só abaixo de 600 ppm.</li>
+        </ol>
+        <pre class="code sm" data-hl="2,4,5,7">
+void avaliar(float ppm, unsigned long agora) {
+  if (agora - tBoot &lt; AQUECIMENTO) return;
+
+  if (ppm &lt; LIGA) tAcima = agora;  // zera
+  if (!alarme &amp;&amp; agora - tAcima &gt;= 3000)
+    alarme = true;                 // 3 s acima
+  if (alarme &amp;&amp; ppm &lt;= DESLIGA)
+    alarme = false;                // histerese
+}</pre>
+      </div>
+      <div class="sim" data-sim="gas">
+        <div class="sim-head"><span class="sim-title">Cozinha com MQ-2 · tempo acelerado</span>
+          <div class="seg" data-seg="modo"><button data-v="simples" aria-pressed="true">limiar simples</button><button data-v="robusto" aria-pressed="false">3 regras</button></div></div>
+        <canvas data-c="plot" height="220"></canvas>
+        <div class="btn-row">
+          <button class="btn ghost sm" data-act="boot">Religar a placa</button>
+          <button class="btn orange sm" data-act="small" aria-pressed="false">Vazamento pequeno</button>
+          <button class="btn orange sm" data-act="big" aria-pressed="false">Vazamento grande</button>
+        </div>
+        <div class="stats">
+          <div class="stat"><span>estado</span><b data-o="st" style="font-size:16px">–</b></div>
+          <div class="stat orange"><span>ppm estimado</span><b data-o="ppm">–</b></div>
+          <div class="stat red"><span>acionamentos</span><b data-o="n">0</b></div>
+        </div>
+        <p class="hint">Em cada modo: religue a placa e depois provoque um vazamento pequeno, que fica perto do limite. Conte os acionamentos.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 16. OUTROS ANALÓGICOS ============ -->
+<section class="slide" data-title="Outros sensores analógicos muito usados" data-section="Sensores analógicos">
+  <div class="wrap">
+    <p class="kicker orange">Sensores analógicos</p>
+    <h2>Outros sensores analógicos comuns</h2>
+    <div class="gallery">
+      <div class="card"><div class="icon"><svg viewBox="0 0 160 110" aria-hidden="true">
+          <rect x="45" y="40" width="70" height="36" rx="6" style="fill:var(--blue);opacity:.35;stroke:var(--blue)" stroke-width="2"/>
+          <rect x="72" y="10" width="16" height="32" rx="4" style="fill:var(--surface-3);stroke:var(--wire)" stroke-width="2"/>
+          <path d="M80 12 V28" style="stroke:var(--text)" stroke-width="2.5"/>
+          <path d="M60 76 V100 M80 76 V100 M100 76 V100" style="stroke:var(--wire)" stroke-width="3"/></svg></div>
+        <div class="body"><h3 class="c-blue">Potenciômetro</h3>
+          <p>Uma trilha resistiva com um contato que desliza ao girar o eixo. Já é um divisor de tensão pronto: o pino do meio vai de 0 a 3,3 V.</p>
+          <div class="apps"><span>volume</span><span>joystick</span><span>ajuste de setpoint</span></div></div></div>
+      <div class="card"><figure class="pic sm"><img src="assets/img/lm35.jpg" alt="Sensor de temperatura LM35 em encapsulamento de três terminais"><figcaption>Foto: Nevit Dilmen · CC BY-SA 3.0</figcaption></figure>
+        <div class="body"><h3 class="c-orange">LM35 · temperatura</h3>
+          <p>Um chip que entrega <b>10 mV por °C</b>: 25 °C = 250 mV. Linear, sem divisor e sem fórmula. Alimentado em 5 V, a saída não passa de 1,5 V: segura para o ESP32.</p>
+          <div class="apps"><span>estação meteorológica</span><span>proteção térmica</span></div></div></div>
+      <div class="card"><div class="icon"><svg viewBox="0 0 160 110" aria-hidden="true">
+          <rect x="50" y="6" width="60" height="26" rx="4" style="fill:var(--red);opacity:.35;stroke:var(--red)" stroke-width="2"/>
+          <path d="M62 32 V92 L68 104 L74 92 V32 Z M86 32 V92 L92 104 L98 92 V32 Z" style="fill:var(--yellow);opacity:.7;stroke:var(--yellow)" stroke-width="1.5"/>
+          <path d="M20 70 Q40 62 60 70 T100 70 T140 70" fill="none" style="stroke:var(--blue)" stroke-width="2" stroke-dasharray="4 4"/></svg></div>
+        <div class="body"><h3 class="c-yellow">Umidade do solo</h3>
+          <p>Duas hastes enterradas. Água conduz eletricidade: solo molhado → resistência menor → tensão maior. A versão <b>capacitiva</b> não corrói e dura mais.</p>
+          <div class="apps"><span>irrigação automática</span><span>vaso inteligente</span></div></div></div>
+      <div class="card"><div class="icon"><svg viewBox="0 0 160 110" aria-hidden="true">
+          <circle cx="62" cy="55" r="26" style="fill:var(--surface-3);stroke:var(--text-2)" stroke-width="3"/>
+          <circle cx="62" cy="55" r="17" fill="none" style="stroke:var(--wire)" stroke-width="2" stroke-dasharray="3 3"/>
+          <path d="M98 40 Q106 55 98 70 M110 32 Q122 55 110 78 M122 24 Q138 55 122 86" fill="none" style="stroke:var(--mint)" stroke-width="2.5"/></svg></div>
+        <div class="body"><h3 class="c-mint">Microfone</h3>
+          <p>Uma membrana fina vibra com o som e muda a carga de um pequeno capacitor. O módulo amplifica: a saída <b>oscila</b> no ritmo do som.</p>
+          <div class="apps"><span>luz que acende com palmas</span><span>medidor de ruído</span></div></div></div>
+    </div>
+    <div class="note">Também comuns: <b>sensor de chama</b> (fototransistor que enxerga o infravermelho do fogo), <b>sensor de chuva</b> (trilhas que conduzem quando molham), <b>joystick</b> (dois potenciômetros) e <b>sensor de corrente</b> ACS712. Quase todos os módulos têm as duas saídas: <b>AO</b> (valor) e <b>DO</b> (passou do limiar).</div>
+  </div>
+</section>
+
+<!-- ============ 17. LIGA/DESLIGA: REED ============ -->
+<section class="slide" data-title="Sensores digitais liga/desliga: o reed switch" data-section="Sensores digitais">
+  <div class="wrap">
+    <p class="kicker blue">Sensores digitais</p>
+    <h2>Sensores liga/desliga</h2>
+    <div class="grid-2 wide-right">
+      <div class="stack" style="gap:12px">
+        <p class="def blue">O sensor funciona como uma <b>chave</b>: o pino fica em HIGH ou LOW. Basta <code>digitalRead()</code>.</p>
+        <ul class="bullets small blue">
+          <li><b>Botão e fim de curso</b>: a mecânica fecha o contato (portão que chegou ao fim).</li>
+          <li><b>Boia de nível</b>: um ímã dentro da boia sobe com a água e fecha um contato.</li>
+          <li><b>Reed switch</b>: duas lâminas de metal dentro de uma ampola de vidro. Um <b>ímã</b> por perto as atrai e elas se encostam.</li>
+        </ul>
+        <figure class="pic"><img src="assets/img/reed.jpg" alt="Reed switch: ampola de vidro verde com duas lâminas metálicas" style="height:90px"><figcaption>Reed switch · Foto: André Karwath · CC BY-SA 2.5 · Wikimedia Commons</figcaption></figure>
+        <pre class="code sm" data-hl="2,5">
+void setup() {
+  pinMode(PORTA, INPUT_PULLUP);  // sem ímã: HIGH
+}
+void loop() {
+  bool fechada = digitalRead(PORTA) == LOW;
+}</pre>
+        <div class="apps"><span>alarme de porta e janela</span><span>velocímetro de bicicleta</span><span>nível de caixa d’água</span></div>
+      </div>
+      <div class="sim" data-sim="reed">
+        <div class="sim-head"><span class="sim-title">Reed switch na porta</span><span class="pill" data-o="st"></span></div>
+        <svg class="stage" viewBox="0 0 520 240" role="img" aria-label="Ímã se aproxima do reed switch e as lâminas se encostam" style="max-height:260px"></svg>
+        <div class="ctl"><label for="rdD">Distância do ímã (preso na porta)</label><output data-o="d"></output><input id="rdD" type="range" min="2" max="60" step="1" value="40" data-in="d"></div>
+        <p class="hint">O <code>INPUT_PULLUP</code> mantém o pino em HIGH quando a chave está aberta; ao fechar, ela liga o pino ao GND e a leitura vira LOW. Sem pull-up, o pino aberto flutua.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 18. PIR ============ -->
+<section class="slide" data-title="PIR: o sensor de presença" data-section="Sensores digitais">
+  <div class="wrap">
+    <p class="kicker blue">Sensores digitais</p>
+    <h2>PIR: o sensor de “presença”</h2>
+    <div class="grid-2 wide-right">
+      <div class="stack" style="gap:12px">
+        <ol class="how">
+          <li>Todo corpo quente emite <b>infravermelho</b>: calor invisível.</li>
+          <li>Dentro do PIR há um elemento <b>piroelétrico</b> com duas metades. Ele gera sinal quando o calor que recebe <b>muda</b>, não quando o calor é constante.</li>
+          <li>A cúpula branca é uma <b>lente de Fresnel</b>: divide a sala em várias faixas. Quem anda passa de uma faixa para outra e provoca mudanças seguidas.</li>
+          <li>O módulo (HC-SR501) já decide: a saída <b>OUT</b> fica em HIGH por alguns segundos, ajustáveis no potenciômetro.</li>
+        </ol>
+        <div class="note warn">O PIR detecta <b>movimento</b>, não presença. Uma pessoa parada lendo na sala pode “sumir” para ele, e a luz automática apaga.</div>
+        <div class="apps"><span>luz de corredor</span><span>alarme residencial</span><span>economia de energia em salas</span></div>
+      </div>
+      <div class="sim" data-sim="pir">
+        <div class="sim-head"><span class="sim-title">Vista de cima da sala</span>
+          <div class="btn-row"><button class="btn sm" data-act="cross">Pessoa atravessa</button><button class="btn ghost sm" data-act="stop">Pessoa para no meio</button></div></div>
+        <svg class="stage" viewBox="0 0 520 210" role="img" aria-label="Pessoa atravessando as faixas de detecção do sensor PIR" style="max-height:230px;overflow:hidden"></svg>
+        <canvas data-c="plot" height="130"></canvas>
+        <div class="btn-row"><span class="pill" data-o="out"></span></div>
+        <p class="step-caption" data-o="msg"></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 19. ULTRASSÔNICO ============ -->
+<section class="slide" data-title="Ultrassônico HC-SR04: medindo distância pelo eco" data-section="Sensores digitais">
+  <div class="wrap">
+    <p class="kicker blue">Sensores digitais</p>
+    <h2>Ultrassom: medindo distância pelo eco</h2>
+    <div class="grid-2 wide-right">
+      <div class="stack" style="gap:12px">
+        <figure class="pic"><img src="assets/img/hcsr04.jpg" alt="Módulo ultrassônico HC-SR04 com dois transdutores" style="height:120px"><figcaption>HC-SR04 · Foto: Suyash Dwivedi · CC BY-SA 4.0 · Wikimedia Commons</figcaption></figure>
+        <ol class="how">
+          <li>O ESP32 dá um pulso de 10 µs no pino <b>TRIG</b>.</li>
+          <li>O emissor solta um “bip” de <b>40 kHz</b>, agudo demais para ouvirmos. É como um morcego.</li>
+          <li>O som bate no objeto e volta. Enquanto ele está a caminho, o pino <b>ECHO</b> fica em HIGH.</li>
+          <li>Distância = tempo × velocidade do som (343 m/s) ÷ 2, porque o som vai <b>e volta</b>.</li>
+        </ol>
+        <div class="apps"><span>sensor de estacionamento</span><span>nível de caixa d’água</span><span>robô que desvia</span></div>
+      </div>
+      <div class="stack" style="gap:12px">
+        <div class="sim" data-sim="ultra">
+          <div class="sim-head"><span class="sim-title">Ida e volta do som · animação em câmera lenta</span></div>
+          <svg class="stage" viewBox="0 0 520 220" role="img" aria-label="Onda de ultrassom indo até o objeto e voltando; pulsos TRIG e ECHO" style="max-height:200px"></svg>
+          <div class="ctl"><label for="usD">Distância do objeto</label><output data-o="d"></output><input id="usD" type="range" min="5" max="200" step="1" value="60" data-in="d"></div>
+          <div class="stats">
+            <div class="stat mint"><span>ECHO em HIGH</span><b data-o="us">–</b></div>
+            <div class="stat blue"><span>distância calculada</span><b data-o="cm">–</b></div>
+          </div>
+        </div>
+        <pre class="code sm" data-hl="4,5">
+digitalWrite(TRIG, HIGH);
+delayMicroseconds(10);
+digitalWrite(TRIG, LOW);
+long us = pulseIn(ECHO, HIGH, 30000);  // espera no máx. 30 ms
+float cm = us * 0.0343 / 2;            // ida e volta</pre>
+        <p class="hint">O HC-SR04 trabalha em 5 V e o ECHO sai com 5 V: use um divisor antes do ESP32, ou a versão 3,3 V (HC-SR04P). Tecidos e espumas absorvem o som e “somem”.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 20. SENSORES COM CHIP ============ -->
+<section class="slide" data-title="Sensores digitais que mandam o número pronto" data-section="Sensores digitais">
+  <div class="wrap">
+    <p class="kicker blue">Sensores digitais</p>
+    <h2>Sensores que mandam o número pronto</h2>
+    <p class="lead sm">Dentro deles há o elemento sensor <b>e</b> um pequeno chip que mede, corrige e envia o resultado em bits. O ESP32 não usa o ADC: uma biblioteca conversa com o sensor.</p>
+    <div class="gallery">
+      <div class="card"><figure class="pic sm"><img src="assets/img/dht22.jpg" alt="Módulo DHT22 com grade branca"><figcaption>Foto: Suyash Dwivedi · CC BY-SA 4.0</figcaption></figure>
+        <div class="body"><h3 class="c-mint">DHT11 / DHT22</h3>
+          <p><b>Temperatura e umidade.</b> Dentro: um material que absorve água do ar e muda sua capacitância, e um NTC. Envia tudo por 1 fio.</p>
+          <div class="apps"><span>estufa</span><span>quarto</span></div></div></div>
+      <div class="card"><figure class="pic sm cover"><img src="assets/img/ds18b20.jpg" alt="Sensor DS18B20 à prova d'água, com ponta de aço inox e cabo"><figcaption>Foto: Leonardo Postay · CC BY-SA 4.0</figcaption></figure>
+        <div class="body"><h3 class="c-orange">DS18B20</h3>
+          <p><b>Temperatura</b> com ±0,5 °C. Versão com ponta de inox à prova d’água. Vários sensores podem dividir o <b>mesmo fio</b> (1-Wire).</p>
+          <div class="apps"><span>aquário</span><span>câmara fria</span></div></div></div>
+      <div class="card"><figure class="pic sm"><img src="assets/img/bme280.jpg" alt="Placa vermelha com o sensor BME280"><figcaption>Foto: SparkFun · CC BY 2.0</figcaption></figure>
+        <div class="body"><h3 class="c-blue">BME280</h3>
+          <p><b>Temperatura, umidade e pressão</b> em um chip de 2,5 mm. A pressão do ar indica o tempo e a altitude. Fala por I²C.</p>
+          <div class="apps"><span>estação meteorológica</span><span>drone</span></div></div></div>
+      <div class="card"><figure class="pic sm"><img src="assets/img/mpu6050.jpg" alt="Módulo GY-521 com o MPU-6050"><figcaption>Foto: Nevit Dilmen · CC BY-SA 3.0</figcaption></figure>
+        <div class="body"><h3 class="c-yellow">MPU6050</h3>
+          <p><b>Aceleração e giro.</b> Dentro há uma massa microscópica presa por “molas”. Ao mover a placa, ela se desloca e muda uma capacitância. Fala por I²C.</p>
+          <div class="apps"><span>celular</span><span>contador de passos</span></div></div></div>
+    </div>
+    <div class="note">“Digital” não quer dizer exato: o DHT11 erra até ±2 °C, o DHT22 ±0,5 °C. A vantagem é que o número chega pronto e o fio não acrescenta erro.</div>
+  </div>
+</section>
+
+<!-- ============ 21. LENDO COM BIBLIOTECA ============ -->
+<section class="slide" data-title="Lendo sensores digitais com biblioteca" data-section="Sensores digitais">
+  <div class="wrap">
+    <p class="kicker blue">Sensores digitais</p>
+    <h2>Lendo com uma biblioteca</h2>
+    <div class="grid-2 even">
+      <div class="card blue"><h3>DHT22 · temperatura e umidade</h3>
+        <pre class="code sm" data-hl="6,7">
+#include &lt;DHT.h&gt;
+DHT dht(4, DHT22);     // dados no GPIO 4
+
+void setup() { dht.begin(); }
+void loop() {
+  float t = dht.readTemperature();
+  float u = dht.readHumidity();
+  if (isnan(t) || isnan(u)) Serial.println("falha");
+  else Serial.printf("%.1f C  %.0f %%\n", t, u);
+  delay(2000);         // DHT22: 1 leitura a cada 2 s
+}</pre>
+        <p><code>isnan()</code>: a biblioteca devolve <b>NaN</b> (“não é um número”) quando o sensor não responde.</p></div>
+      <div class="card orange"><h3>DS18B20 · temperatura</h3>
+        <pre class="code sm" data-hl="7,8">
+#include &lt;OneWire.h&gt;
+#include &lt;DallasTemperature.h&gt;
+OneWire fio(15);                  // + resistor 4,7 kΩ ao 3,3 V
+DallasTemperature sensor(&amp;fio);
+
+void loop() {
+  sensor.requestTemperatures();   // até 750 ms para medir
+  float t = sensor.getTempCByIndex(0);
+  if (t == DEVICE_DISCONNECTED_C) Serial.println("sem sensor");
+}</pre>
+        <p>Se o sensor não responde, a leitura é <b>−127</b>. Um <b>85</b> logo ao ligar é o valor de fábrica, lido cedo demais.</p></div>
+    </div>
+    <div class="cards three">
+      <div class="card tight mint"><h3>Resistor de pull-up</h3><p>O fio de dados precisa de um resistor ao 3,3 V (4,7 a 10 kΩ). Muitos módulos já trazem.</p></div>
+      <div class="card tight yellow"><h3>Tempo de leitura</h3><p>Sensor digital leva de milissegundos a quase 1 s para medir. Respeite o intervalo mínimo do datasheet.</p></div>
+      <div class="card tight red"><h3>Valores de erro</h3><p>NaN, −127, 85: o programa deve reconhecer cada um e não usá-los como temperatura.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 22. MAPA DOS SENSORES ============ -->
+<section class="slide" data-title="Mapa dos sensores mais usados" data-section="Sensores digitais">
+  <div class="wrap">
+    <p class="kicker blue">Resumo dos sensores</p>
+    <h2>Mapa dos sensores mais usados</h2>
+    <table class="cmp">
+      <thead><tr><th>Quero medir</th><th>Sensor</th><th>Saída</th><th>Como o ESP32 lê</th><th>Exemplo de uso</th></tr></thead>
+      <tbody>
+        <tr><td>luz</td><td class="n">LDR · BH1750</td><td class="n">analógica · I²C</td><td class="n">divisor + <code>analogRead</code> · biblioteca</td><td class="n">luz automática · medidor de lux</td></tr>
+        <tr><td>temperatura</td><td class="n">NTC · LM35 · DS18B20</td><td class="n">analógica · analógica · 1-Wire</td><td class="n">divisor + fórmula · mV ÷ 10 · biblioteca</td><td class="n">geladeira, estufa, câmara fria</td></tr>
+        <tr><td>temp. + umidade</td><td class="n">DHT22 · BME280</td><td class="n">1 fio · I²C</td><td class="n">biblioteca</td><td class="n">estação meteorológica</td></tr>
+        <tr><td>gás e fumaça</td><td class="n">MQ-2, MQ-7, MQ-135</td><td class="n">analógica (AO) + liga/desliga (DO)</td><td class="n">divisor 5 V → 3,3 V + <code>analogRead</code></td><td class="n">vazamento de gás</td></tr>
+        <tr><td>movimento</td><td class="n">PIR HC-SR501</td><td class="n">liga/desliga</td><td class="n"><code>digitalRead</code> ou interrupção</td><td class="n">alarme, luz de corredor</td></tr>
+        <tr><td>distância</td><td class="n">HC-SR04</td><td class="n">pulso (duração)</td><td class="n"><code>pulseIn</code></td><td class="n">estacionamento, nível de tanque</td></tr>
+        <tr><td>porta aberta</td><td class="n">reed + ímã</td><td class="n">liga/desliga</td><td class="n"><code>INPUT_PULLUP</code> + <code>digitalRead</code></td><td class="n">alarme de janela</td></tr>
+        <tr><td>umidade do solo</td><td class="n">capacitivo</td><td class="n">analógica</td><td class="n"><code>analogRead</code></td><td class="n">irrigação automática</td></tr>
+        <tr><td>inclinação, vibração</td><td class="n">MPU6050</td><td class="n">I²C</td><td class="n">biblioteca</td><td class="n">equilíbrio de robô, passos</td></tr>
+      </tbody>
+    </table>
+    <div class="grid-2 even" style="gap:14px">
+      <div class="note"><b>Analógico</b>: mais barato e rápido, mas exige divisor, fórmula e calibração. O fio solto pode parecer uma leitura.</div>
+      <div class="note"><b>Digital</b>: mais caro e mais lento, mas já calibrado. Fio solto vira erro reconhecível (NaN, −127).</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 23. REQUISITOS NÃO FUNCIONAIS ============ -->
+<section class="slide" data-title="Requisitos não funcionais" data-section="Requisitos não funcionais">
+  <div class="wrap">
+    <p class="kicker" style="color:var(--red)">Requisitos não funcionais</p>
+    <h2>Requisitos não funcionais (RNF)</h2>
+    <div class="grid-2 even" style="gap:14px">
+      <div class="def blue"><b>Funcional</b>: o que o sistema <b>faz</b>.<br>“Medir a temperatura da câmara fria e alarmar acima de 8 °C.”</div>
+      <div class="def red"><b>Não funcional</b>: <b>quão bem</b> e com quais <b>limites</b>.<br>Com que exatidão? Em quanto tempo? Por quanto tempo na bateria? A que custo?</div>
+    </div>
+    <p class="analogy">Ao comprar um celular, “fazer ligações” é funcional. Bateria de 2 dias, tela legível ao sol e preço até R$ 1.500 são não funcionais. Muitas vezes são eles que decidem a compra.</p>
+    <table class="cmp sm">
+      <thead><tr><th>Categoria</th><th>Exemplo para a câmara fria</th><th>Como verificar</th></tr></thead>
+      <tbody>
+        <tr><td>exatidão</td><td class="n">erro de no máximo ±0,5 °C entre −5 e 15 °C</td><td class="n">comparar com um termômetro de referência</td></tr>
+        <tr><td>tempo de resposta</td><td class="n">alarme em até 2 min depois de passar de 8 °C</td><td class="n">aquecer o sensor e cronometrar</td></tr>
+        <tr><td>robustez</td><td class="n">sensor desconectado é avisado em até 5 s</td><td class="n">soltar o fio com o sistema rodando</td></tr>
+        <tr><td>autonomia</td><td class="n">pelo menos 6 meses com uma bateria 18650</td><td class="n">medir a corrente média e calcular</td></tr>
+        <tr><td>custo</td><td class="n">componentes até R$ 120 por unidade</td><td class="n">lista de materiais</td></tr>
+        <tr><td>segurança</td><td class="n">nenhum pino do ESP32 recebe mais de 3,3 V</td><td class="n">revisar o esquema, medir com multímetro</td></tr>
+      </tbody>
+    </table>
+    <div class="note">Um bom RNF tem <b>número, condição e forma de testar</b>. “Rápido”, “preciso” e “econômico” não dá para testar. É dos RNF que sai a escolha do sensor.</div>
+  </div>
+</section>
+
+<!-- ============ 24. RNF EM CONFLITO ============ -->
+<section class="slide" data-title="RNF em conflito: tempo de resposta × bateria" data-section="Requisitos não funcionais">
+  <div class="wrap">
+    <p class="kicker" style="color:var(--red)">Requisitos não funcionais</p>
+    <h2>RNF em conflito: rapidez × bateria</h2>
+    <div class="grid-2 wide-right">
+      <div class="stack" style="gap:12px">
+        <p class="lead sm">Os requisitos puxam para lados opostos. Ler mais vezes avisa mais rápido, mas gasta mais bateria. Projetar é achar uma configuração que atenda <b>a todos</b>.</p>
+        <ul class="bullets small">
+          <li>Entre uma leitura e outra, o ESP32 pode <b>dormir</b> (deep sleep) gastando quase nada.</li>
+          <li>Ligar o <b>Wi‑Fi</b> é o que mais consome. Enviar só quando precisa economiza muito.</li>
+          <li>A <b>placa</b> e o <b>sensor</b> também contam: alguns gastam muito mesmo parados.</li>
+        </ul>
+        <pre class="code sm" data-hl="4,8">
+void setup() {               // roda a cada despertar
+  float t = lerTemperatura();
+  if (t &gt; LIMITE || horaDoLote())
+    enviarWiFi(t);           // rádio só quando precisa
+  else guardarNaRTC(t);
+  esp_sleep_enable_timer_wakeup(
+      60 * 1000000ULL);      // acorda em 60 s
+  esp_deep_sleep_start();    // dorme
+}</pre>
+      </div>
+      <div class="sim" data-sim="rnf">
+        <div class="sim-head"><span class="sim-title">Monitor a bateria · 18650 de 3000 mAh</span></div>
+        <div class="btn-row">
+          <div class="seg" data-seg="sensor"><button data-v="ntc" aria-pressed="true">NTC</button><button data-v="ds" aria-pressed="false">DS18B20</button><button data-v="mq" aria-pressed="false">MQ-2</button></div>
+          <div class="seg" data-seg="placa"><button data-v="dev" aria-pressed="false">DevKit</button><button data-v="lp" aria-pressed="true">placa de baixo consumo</button></div>
+        </div>
+        <div class="btn-row">
+          <div class="seg" data-seg="envio"><button data-v="cada" aria-pressed="true">envia toda leitura</button><button data-v="lote" aria-pressed="false">lote por hora + alarme imediato</button></div>
+        </div>
+        <div class="ctl"><label for="rnI">Intervalo entre leituras</label><output data-o="i"></output><input id="rnI" type="range" min="0" max="8" step="1" value="2" data-in="i"></div>
+        <div class="stack" style="gap:4px">
+          <span class="hint">Para onde vai a bateria:</span>
+          <div class="sbar" data-o="bar"></div>
+          <div class="sbar-leg" data-o="leg"></div>
+        </div>
+        <div class="stats">
+          <div class="stat blue"><span>corrente média</span><b data-o="im">–</b></div>
+          <div class="stat mint"><span>bateria dura</span><b data-o="aut">–</b></div>
+          <div class="stat orange"><span>alarme, pior caso</span><b data-o="lat">–</b></div>
+        </div>
+        <div class="btn-row"><span class="pill" data-o="r1">RNF-01</span><span class="pill" data-o="r2">RNF-02</span></div>
+        <p class="step-caption" data-o="msg"></p>
+        <p class="hint">Valores aproximados, para comparar escolhas. Meça a corrente real da sua placa.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PEER INSTRUCTION 3 ============ -->
+<section class="slide pi" data-title="Pergunta: qual requisito dá para testar?" data-section="Peer Instruction">
+  <div class="wrap">
+    <p class="kicker">Peer Instruction · Pergunta 3 de 3</p>
+    <h2>Qual requisito dá para testar?</h2>
+    <p class="lead">A equipe escreveu requisitos para o detector de gás de uma cozinha. Qual deles é um <b>requisito não funcional verificável</b>?</p>
+    <div class="pi-opts">
+      <div class="opt"><span class="letter">A</span><p>“O sistema deve detectar vazamentos de gás rapidamente.”</p></div>
+      <div class="opt"><span class="letter">B</span><p>“O sistema deve ser preciso e confiável.”</p></div>
+      <div class="opt" data-ok><span class="letter">C</span><p>“Com GLP a 1.000 ppm, o alarme sonoro dispara em até 10 s, depois de 5 min de aquecimento.”</p></div>
+      <div class="opt"><span class="letter">D</span><p>“O sistema deve usar o sensor MQ-2.”</p></div>
+    </div>
+    <div class="pi-foot">
+      <p class="pi-steps">1º voto individual → discuta com um colega → 2º voto</p>
+      <button class="btn" data-pi-reveal>Revelar resposta</button>
+    </div>
+    <div class="note ok pi-exp">C tem número (10 s), condição (1.000 ppm de GLP, após o aquecimento) e um teste óbvio. A e B são desejos sem número. D é uma <b>escolha de projeto</b>, não uma qualidade: o sensor deveria ser escolhido <b>a partir</b> dos requisitos.</div>
+  </div>
+</section>
+
+<!-- ============ 26. SÍNTESE ============ -->
+<section class="slide" data-title="Síntese: do sensor ao requisito" data-section="Síntese">
+  <div class="wrap">
+    <p class="kicker">Síntese</p>
+    <h2>O que levar desta aula</h2>
+    <div class="check">
+      <div class="card blue"><h3>Entradas</h3><ul>
+        <li>Analógico = quanto; digital = sim ou não</li>
+        <li>O ADC do ESP32 é uma régua de 0 a 4095</li>
+        <li>Sensor analógico no <b>ADC1</b> (GPIO 32–39) se houver Wi‑Fi</li>
+        <li>Nunca mais de 3,3 V no pino</li></ul></div>
+      <div class="card orange"><h3>Analógicos</h3><ul>
+        <li>LDR, NTC e gás mudam de <b>resistência</b>: use divisor</li>
+        <li>Ponte de Wheatstone compara com uma referência</li>
+        <li>NTC: fórmula e calibração; gás: aquecimento</li>
+        <li>Dois limiares (histerese) evitam o liga-desliga</li></ul></div>
+      <div class="card mint"><h3>Digitais</h3><ul>
+        <li>Reed, PIR, botão: <code>digitalRead</code> com pull-up</li>
+        <li>PIR vê movimento, não presença</li>
+        <li>Ultrassom mede o tempo do eco</li>
+        <li>DHT22, DS18B20: biblioteca e valores de erro</li></ul></div>
+      <div class="card red"><h3>Requisitos</h3><ul>
+        <li>Funcional: o que faz; não funcional: quão bem</li>
+        <li>Cada RNF com número e teste</li>
+        <li>Rapidez × bateria se decide com números</li>
+        <li>Primeiro os requisitos, depois o sensor</li></ul></div>
+    </div>
+    <div class="note">Pergunta para o projeto: <b>o que o seu sistema precisa sentir, com que exatidão e em quanto tempo?</b> A resposta escolhe o sensor.</div>
+  </div>
+</section>
+
+</main>
+
+<script src="js/kit.js"></script>
+<script src="js/sims-como-funciona.js"></script>
+<script src="js/sims-sensores.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
