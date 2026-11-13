@@ -1,0 +1,1063 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Como o ESP32 se comunica sem fio</title>
+<meta name="description" content="Aula 5 — Comunicação sem fio do ESP32: camadas TCP/IP; HTTP e MQTT pela Internet; ESP‑NOW e BLE direto pelo ar. Para cada protocolo: como funciona, os fios e o esquema da mensagem, com simulações dos pacotes e quizzes formativos.">
+<link rel="icon" href="assets/img/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<script src="js/theme.js"></script>
+</head>
+<body>
+
+<header class="topbar">
+  <img class="logo" src="assets/img/logo.png" alt="Inteli">
+  <div class="deck-title"><b>Aula 5</b> · Como o ESP32 se comunica sem fio</div>
+  <span class="spacer"></span>
+  <div class="aula-acesso" aria-label="Participação na aula">
+    <span class="net"><span class="net-dot" id="netDot"></span><span id="netLabel">…</span></span>
+    <form id="accForm" class="acc-form" autocomplete="off">
+      <label class="sr-only" for="accCode">Senha da aula</label>
+      <input id="accCode" placeholder="senha da aula" maxlength="32" spellcheck="false" autocapitalize="characters">
+      <button class="btn sm" id="accBtn">Entrar</button>
+    </form>
+    <button type="button" class="btn ghost sm" id="accWho" hidden title="Seus dados">● <span id="accName"></span></button>
+  </div>
+  <a class="btn ghost back-link" href="../../aulas/aula-4/index.html" title="Voltar para a Aula 4">← Aula 4</a>
+  <nav class="nav" aria-label="Navegação dos slides">
+    <button class="icon-btn" id="btnPrev" title="Anterior (←)" aria-label="Slide anterior"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button>
+    <span class="counter" id="counter">1 / 25</span>
+    <button class="icon-btn" id="btnNext" title="Próximo (→)" aria-label="Próximo slide"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+    <button class="icon-btn" id="btnGrid" title="Visão geral (G)" aria-label="Visão geral"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></svg></button>
+    <button class="icon-btn theme-btn" id="btnTheme" title="Tema claro/escuro (T)" aria-label="Alternar tema claro/escuro"><svg class="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><svg class="i-moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+    <button class="icon-btn" id="btnFull" title="Tela cheia (F)" aria-label="Tela cheia"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+  </nav>
+</header>
+<div class="progress" id="progress"></div>
+<div class="overview" id="overview" aria-hidden="true"><div class="grid" id="overviewGrid"></div></div>
+
+<main class="deck" id="deck">
+
+<!-- ============ 1. CAPA ============ -->
+<section class="slide cover" data-title="Como o ESP32 se comunica sem fio" data-section="Introdução">
+  <svg class="traces" data-sim="traces" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true"></svg>
+  <div class="wrap">
+    <p class="kicker">Aula 5 · Sistemas embarcados</p>
+    <h1>Como o ESP32 se comunica<br><span>sem fio: do Wi‑Fi ao MQTT</span></h1>
+    <p class="lead">Na placa, os blocos conversam por fios. Agora o ESP32 sai da bancada e conversa pelo ar. Para cada jeito de comunicar, vamos olhar a mesma coisa: <b>por onde</b> os bits passam, <b>quem</b> começa a conversa e <b>como é montada</b> a mensagem.</p>
+    <div class="agenda" style="grid-template-columns:repeat(2,minmax(0,1fr));max-width:660px">
+      <div><b>Pelo ar</b>Wi‑Fi, ESP‑NOW e BLE: quem fala com quem</div>
+      <div><b>Pela rede</b>As camadas do TCP/IP</div>
+      <div><b>Na Internet</b>HTTP e MQTT</div>
+      <div style="border-color:var(--yellow)"><b>Direto pelo ar</b>ESP‑NOW e BLE</div>
+    </div>
+    <p class="author">Professor Doutor Roberto Cândido</p>
+    <p class="start-hint"><span class="kbd">→</span> ou <span class="kbd">espaço</span> para avançar · <span class="kbd">G</span> visão geral · <span class="kbd">F</span> tela cheia</p>
+  </div>
+</section>
+
+<!-- ============ 2. O QUE É UM PROTOCOLO ============ -->
+<section class="slide" data-title="O que é um protocolo" data-section="Introdução">
+  <div class="wrap">
+    <p class="kicker">Introdução</p>
+    <h2>O que é um protocolo</h2>
+    <p class="def" style="font-size:17px">Um <b>protocolo</b> é o combinado entre dois blocos para que um entenda o outro. Ele responde: por onde vão os bits, quem fala quando, para quem é a mensagem e em que ordem vêm as partes.</p>
+    <div class="stack" style="gap:6px">
+      <span class="fields-cap">Quase toda mensagem tem estas partes</span>
+      <div class="fields">
+        <div class="f o"><b>início</b><small>“atenção, vai começar”</small></div>
+        <div class="f b"><b>endereço</b><small>para quem é</small></div>
+        <div class="f y"><b>controle</b><small>que tipo de mensagem</small></div>
+        <div class="f m" style="--w:2"><b>dados</b><small>o conteúdo de verdade</small></div>
+        <div class="f r"><b>verificação</b><small>chegou certo?</small></div>
+        <div class="f o"><b>fim</b><small>acabou</small></div>
+      </div>
+      <p class="analogy">Como uma carta: o envelope tem destinatário e remetente; dentro, o assunto e o texto; o aviso de recebimento confirma que chegou.</p>
+    </div>
+    <div class="cards four">
+      <div class="card tight blue"><h3>Meio</h3><p>Fio de cobre na placa ou ondas de rádio pelo ar.</p></div>
+      <div class="card tight mint"><h3>Ritmo</h3><p>Um fio de <b>clock</b> marca cada bit, ou os dois lados combinam antes a <b>velocidade</b>.</p></div>
+      <div class="card tight orange"><h3>Endereço</h3><p>Conversa só entre dois, ou vários no mesmo fio, cada um com um endereço.</p></div>
+      <div class="card tight yellow"><h3>Confirmação</h3><p>O receptor responde “recebi” (ACK), ou o emissor manda e segue em frente.</p></div>
+    </div>
+    <div class="note">Você já viu essas escolhas nos protocolos com fio (UART, I²C, SPI). Pelo ar, o meio é o <b>rádio</b>, e o que muda de um protocolo para outro é o resto: endereço, confirmação e o desenho da mensagem.</div>
+  </div>
+</section>
+
+<!-- ============ 3. MAPA DOS PROTOCOLOS ============ -->
+<section class="slide" data-title="Mapa dos protocolos" data-section="Introdução">
+  <div class="wrap">
+    <p class="kicker">Introdução</p>
+    <h2>Mapa dos protocolos desta aula</h2>
+    <div class="cards two">
+      <div class="card orange"><span class="tag">Pela Internet · o mundo</span><h3>Wi‑Fi + TCP/IP</h3>
+        <ul class="bullets small orange">
+          <li>O ESP32 entra na rede do roteador e chega à Internet.</li>
+          <li>A mensagem viaja em <b>camadas</b>: endereço, porta, entrega garantida.</li>
+          <li>Por cima: <b>HTTP</b> (pergunta e resposta) e <b>MQTT</b> (publicar e assinar).</li>
+        </ul></div>
+      <div class="card"><span class="tag">Direto pelo ar · metros</span><h3 style="color:var(--yellow)">Sem roteador</h3>
+        <ul class="bullets small">
+          <li><b>ESP‑NOW</b>: um ESP32 manda um pacote direto para outro ESP32.</li>
+          <li><b>BLE</b>: o celular conversa com o ESP32 por Bluetooth de baixo consumo.</li>
+        </ul></div>
+    </div>
+    <div class="chain" style="grid-template-columns:repeat(5,minmax(0,1fr))">
+      <div><b>Sensor</b><p>na placa, por fio (já visto)</p></div>
+      <div><b>ESP32</b><p>lê, decide e monta a mensagem</p></div>
+      <div><b>Rede</b><p>Wi‑Fi até o roteador</p></div>
+      <div><b>Internet</b><p>HTTP ou MQTT</p></div>
+      <div><b>Pessoa / sistema</b><p>celular, painel, banco de dados</p></div>
+    </div>
+    <div class="note">Regra prática: rádio direto (ESP‑NOW, BLE) resolve o que está <b>perto</b>; para alcançar <b>qualquer lugar</b>, só pela Internet (Wi‑Fi + TCP/IP).</div>
+  </div>
+</section>
+
+<!-- ============ 9. SEM FIO ============ -->
+<section class="slide" data-title="Pelo ar: quem fala com quem" data-section="Sem fio">
+  <div class="wrap">
+    <p class="kicker orange">Sem fio</p>
+    <h2>Pelo ar: quatro jeitos de o ESP32 conversar</h2>
+    <div class="grid-2 wide-right">
+      <div class="stack" style="gap:12px">
+        <p class="def orange">O ESP32 tem rádio de <b>Wi‑Fi</b> e de <b>Bluetooth</b> no mesmo chip. Com ele dá para entrar numa rede, criar uma rede própria ou falar direto com outro aparelho.</p>
+        <table class="cmp sm">
+          <thead><tr><th>Jeito</th><th>Precisa de</th><th>Alcance</th><th>Mensagem</th></tr></thead>
+          <tbody>
+            <tr><td>Wi‑Fi (estação)</td><td class="n">roteador → <b>Internet</b></td><td class="n">o mundo</td><td class="n">pacotes TCP/IP: HTTP, MQTT</td></tr>
+            <tr><td>Wi‑Fi (ponto de acesso)</td><td class="n">nada: o ESP32 é a rede</td><td class="n">~30–50 m</td><td class="n">página web servida pelo ESP32</td></tr>
+            <tr><td>ESP‑NOW</td><td class="n">nada (ESP32 ↔ ESP32)</td><td class="n">~100–200 m</td><td class="n">até 250 bytes por pacote</td></tr>
+            <tr><td>BLE</td><td class="n">nada (celular ↔ ESP32)</td><td class="n">~10 m</td><td class="n">valores pequenos (“características”)</td></tr>
+          </tbody>
+        </table>
+        <p class="hint">Para quilômetros existe o LoRa, com um módulo de rádio externo. Ele fica fora desta aula.</p>
+      </div>
+      <div class="sim" data-sim="arch">
+        <div class="sim-head"><span class="sim-title">Quem fala com quem</span>
+          <div class="seg" data-seg="modo"><button data-v="sta" aria-pressed="true">Estação</button><button data-v="ap" aria-pressed="false">Ponto de acesso</button><button data-v="now" aria-pressed="false">ESP‑NOW</button><button data-v="mqtt" aria-pressed="false">MQTT</button></div></div>
+        <svg class="stage" viewBox="0 0 520 260" role="img" aria-label="Diagrama animado da arquitetura de comunicação escolhida" style="max-height:270px"></svg>
+        <div class="btn-row"><span class="pill" data-o="p1"></span><span class="pill" data-o="p2"></span><span class="pill" data-o="p3"></span></div>
+        <p class="step-caption" data-o="desc"></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 10. MODELO TCP/IP ============ -->
+<section class="slide" data-title="Modelo TCP/IP: as quatro camadas" data-section="Pela rede: TCP/IP">
+  <div class="wrap">
+    <p class="kicker blue">Pela rede · TCP/IP</p>
+    <h2>Modelo TCP/IP: quatro camadas</h2>
+    <div class="grid-2 wide-left">
+      <div class="stack" style="gap:12px">
+        <p class="def blue">Mandar “liga o LED” pela Internet envolve problemas muito diferentes: o rádio, o endereço, a garantia de entrega, o significado da mensagem. O modelo TCP/IP separa esses problemas em <b>camadas</b>. Cada uma resolve o seu e confia na de baixo.</p>
+        <div class="tcpip">
+          <div class="ly app"><b>4 · Aplicação</b><span>o que a mensagem <b>significa</b></span><em>HTTP, MQTT</em></div>
+          <div class="ly tra"><b>3 · Transporte</b><span>entregar ao <b>programa</b> certo (porta), com ou sem garantia</span><em>TCP, UDP</em></div>
+          <div class="ly int"><b>2 · Internet</b><span>endereço do aparelho e <b>caminho</b> entre redes</span><em>IP</em></div>
+          <div class="ly net"><b>1 · Rede</b><span>levar os bits até o <b>vizinho</b>, pelo ar ou pelo cabo</span><em>Wi‑Fi, Ethernet</em></div>
+        </div>
+      </div>
+      <div class="stack" style="gap:12px">
+        <p class="analogy" style="font-style:normal;color:var(--text-2)">Analogia: mandar uma encomenda pelos correios.</p>
+        <ul class="bullets small">
+          <li><b>Aplicação</b>: o conteúdo da carta, escrito numa língua que os dois entendem.</li>
+          <li><b>Transporte</b>: o número do <b>apartamento</b> (porta) e o aviso de recebimento.</li>
+          <li><b>Internet</b>: o <b>endereço</b> do prédio (IP) e os centros de distribuição que escolhem o caminho.</li>
+          <li><b>Rede</b>: o carteiro e a moto: levam só até o próximo ponto.</li>
+        </ul>
+        <div class="note">A vantagem das camadas: dá para trocar uma sem mexer nas outras. O mesmo MQTT funciona sobre Wi‑Fi, cabo Ethernet ou 4G.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 11. ENCAPSULAMENTO ============ -->
+<section class="slide" data-title="Encapsulamento: envelope dentro de envelope" data-section="Pela rede: TCP/IP">
+  <div class="wrap">
+    <p class="kicker blue">Pela rede · TCP/IP</p>
+    <h2>Encapsulamento: envelope dentro de envelope</h2>
+    <div class="grid-2 wide-right">
+      <div class="stack" style="gap:12px">
+        <ol class="how">
+          <li>Na <b>ida</b>, cada camada coloca a mensagem de cima dentro de um envelope próprio: o seu <b>cabeçalho</b>.</li>
+          <li>O quadro sai pelo ar como ondas de rádio. Os roteadores do caminho só leem até a camada Internet (IP).</li>
+          <li>Na <b>chegada</b>, cada camada abre o seu envelope e entrega o conteúdo para a de cima.</li>
+        </ol>
+        <div class="stack" style="gap:6px">
+          <span class="fields-cap">O pacote completo, como sai do ESP32</span>
+          <div class="fields">
+            <div class="f y" style="--w:1.5"><b>Wi‑Fi</b><small>MACs · 30 B</small></div>
+            <div class="f b" style="--w:1.2"><b>IP</b><small>endereços · 20 B</small></div>
+            <div class="f m" style="--w:1.2"><b>TCP</b><small>portas · 20 B</small></div>
+            <div class="f o" style="--w:1.2"><b>MQTT</b><small>tópico · 12 B</small></div>
+            <div class="f r" style="--w:.6"><b>ON</b><small>2 B</small></div>
+            <div class="f y" style="--w:.6"><b>FCS</b><small>4 B</small></div>
+          </div>
+          <p class="fields-note"><span>conteúdo útil: 2 bytes</span><span>no ar: ~88 bytes</span></p>
+        </div>
+      </div>
+      <div class="sim" data-sim="encap">
+        <div class="sim-head"><span class="sim-title">PUBLISH casa/led = ON</span><span class="pill info" data-o="side"></span></div>
+        <svg class="stage" viewBox="0 0 520 290" role="img" aria-label="Pacote ganhando e perdendo cabeçalhos ao passar pelas camadas" style="max-height:300px"></svg>
+        <div class="btn-row">
+          <button class="btn ghost sm" data-act="back">◀ Voltar</button>
+          <button class="btn sm" data-act="next">Próxima etapa ▶</button>
+          <button class="btn ghost sm" data-act="play" aria-pressed="false">Reproduzir</button>
+          <span class="pill" data-o="bytes"></span>
+        </div>
+        <p class="step-caption" data-o="cap"></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 12. ENDEREÇOS: MAC, IP, PORTA ============ -->
+<section class="slide" data-title="Os três endereços do pacote: MAC, IP e porta" data-section="Pela rede: TCP/IP">
+  <div class="wrap">
+    <p class="kicker blue">Pela rede · TCP/IP</p>
+    <h2>Os três endereços de um pacote</h2>
+    <div class="grid-2 wide-right">
+      <div class="stack" style="gap:12px">
+        <table class="cmp sm">
+          <thead><tr><th>Endereço</th><th>Camada</th><th>Exemplo</th><th>Diz…</th></tr></thead>
+          <tbody>
+            <tr><td>MAC</td><td class="n">rede</td><td class="n"><code>24:6F:28:A1:3C:90</code></td><td class="n">qual aparelho <b>nesta rede</b>; gravado de fábrica</td></tr>
+            <tr><td>IP</td><td class="n">Internet</td><td class="n"><code>192.168.0.23</code></td><td class="n">qual aparelho <b>no mundo</b>; o roteador empresta um ao conectar</td></tr>
+            <tr><td>Porta</td><td class="n">transporte</td><td class="n"><code>1883</code></td><td class="n">qual <b>programa</b> dentro do aparelho</td></tr>
+          </tbody>
+        </table>
+        <div class="apps"><span>80 · HTTP</span><span>443 · HTTPS</span><span>1883 · MQTT</span><span>8883 · MQTT seguro</span><span>53 · DNS</span></div>
+        <ul class="bullets small blue">
+          <li><b>IP privado</b> (192.168.x.x, 10.x.x.x): só vale dentro de casa. Milhões de casas usam o mesmo 192.168.0.23.</li>
+          <li><b>NAT</b>: ao sair, o roteador troca o IP privado pelo seu IP <b>público</b>, e desfaz a troca quando a resposta volta.</li>
+          <li><b>DNS</b>: traduz nomes em IP. <code>broker.hivemq.com</code> → um IP público.</li>
+        </ul>
+      </div>
+      <figure class="stack" style="gap:10px">
+        <svg viewBox="0 0 560 300" role="img" aria-label="Rede de casa com IPs privados, roteador com NAT e IP público, Internet e servidor" style="width:100%">
+          <g font-family="IBM Plex Mono, monospace" font-size="12">
+            <rect x="10" y="20" width="250" height="260" rx="16" fill="none" style="stroke:var(--border)" stroke-width="2" stroke-dasharray="6 5"/>
+            <text x="24" y="42" style="fill:var(--muted)">REDE DE CASA · IPs privados</text>
+            <rect x="30" y="70" width="110" height="46" rx="9" style="fill:var(--plot);stroke:var(--mint)" stroke-width="2"/>
+            <text x="85" y="90" text-anchor="middle" style="fill:var(--mint)" font-weight="600">ESP32</text>
+            <text x="85" y="107" text-anchor="middle" style="fill:var(--text-2)">192.168.0.23</text>
+            <rect x="30" y="190" width="110" height="46" rx="9" style="fill:var(--plot);stroke:var(--blue)" stroke-width="2"/>
+            <text x="85" y="210" text-anchor="middle" style="fill:var(--blue)" font-weight="600">notebook</text>
+            <text x="85" y="227" text-anchor="middle" style="fill:var(--text-2)">192.168.0.10</text>
+            <rect x="190" y="118" width="130" height="70" rx="10" style="fill:var(--surface-2);stroke:var(--orange)" stroke-width="2.5"/>
+            <text x="255" y="138" text-anchor="middle" style="fill:var(--orange)" font-weight="700">roteador · NAT</text>
+            <text x="255" y="157" text-anchor="middle" style="fill:var(--muted)">dentro 192.168.0.1</text>
+            <text x="255" y="175" text-anchor="middle" style="fill:var(--text)">fora 177.34.8.120</text>
+            <path d="M140 93 Q170 100 190 135 M140 213 Q170 205 190 170" fill="none" style="stroke:var(--wire)" stroke-width="2.5" stroke-dasharray="4 4"/>
+            <ellipse cx="405" cy="153" rx="62" ry="40" style="fill:var(--surface);stroke:var(--wire)" stroke-width="2"/>
+            <text x="405" y="158" text-anchor="middle" style="fill:var(--text-2)" font-weight="600">Internet</text>
+            <path d="M320 153 H343 M467 153 H480" style="stroke:var(--wire)" stroke-width="2.5"/>
+            <rect x="470" y="128" width="84" height="50" rx="9" style="fill:var(--plot);stroke:var(--yellow)" stroke-width="2"/>
+            <text x="512" y="148" text-anchor="middle" style="fill:var(--yellow)" font-weight="600">servidor</text>
+            <text x="512" y="166" text-anchor="middle" style="fill:var(--text-2)" font-size="11">IP público</text>
+            <path d="M330 222 H470" style="stroke:var(--mint)" stroke-width="2" marker-end="url(#natArr)"/>
+            <text x="400" y="214" text-anchor="middle" style="fill:var(--mint)" font-size="11">de dentro para fora: OK</text>
+            <path d="M470 258 H340" style="stroke:var(--red)" stroke-width="2" stroke-dasharray="5 4"/>
+            <text x="330" y="262" text-anchor="end" style="fill:var(--red)" font-size="15" font-weight="700">✗</text>
+            <text x="405" y="282" text-anchor="middle" style="fill:var(--red)" font-size="11">de fora para dentro: bloqueado</text>
+            <defs><marker id="natArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 Z" style="fill:var(--mint)"/></marker></defs>
+          </g>
+        </svg>
+        <div class="note warn">Consequência: <b>ninguém de fora</b> consegue abrir uma conexão com o ESP32 dentro da sua casa. Mas o ESP32 consegue sair. Guarde isso: é o motivo de o MQTT usar um broker.</div>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 13. TCP x UDP ============ -->
+<section class="slide" data-title="Transporte: TCP × UDP" data-section="Pela rede: TCP/IP">
+  <div class="wrap">
+    <p class="kicker blue">Pela rede · Transporte</p>
+    <h2>Transporte: TCP × UDP</h2>
+    <div class="grid-2 wide-right">
+      <div class="stack" style="gap:12px">
+        <div class="card tight mint"><h3>TCP · carta registrada</h3><p>Abre uma <b>conexão</b> antes (SYN, SYN‑ACK, ACK), numera os pedaços, confirma cada um e <b>reenvia</b> o que se perdeu. Chega tudo, em ordem.</p>
+          <div class="fields" style="margin-top:4px">
+            <div class="f m"><b>portas</b><small>4 B</small></div>
+            <div class="f m"><b>nº sequência</b><small>4 B</small></div>
+            <div class="f m"><b>nº confirmação</b><small>4 B</small></div>
+            <div class="f m"><b>flags</b><small>SYN ACK FIN</small></div>
+            <div class="f g"><b>janela, soma…</b><small>6 B</small></div>
+          </div>
+          <span class="ex">cabeçalho de 20 B · usado por HTTP e MQTT</span></div>
+        <div class="card tight orange"><h3>UDP · cartão‑postal</h3><p>Manda e esquece. Sem conexão, sem confirmação. Rápido e leve, mas o que se perde, se perde.</p>
+          <div class="fields" style="margin-top:4px">
+            <div class="f o"><b>porta origem</b><small>2 B</small></div>
+            <div class="f o"><b>porta destino</b><small>2 B</small></div>
+            <div class="f o"><b>tamanho</b><small>2 B</small></div>
+            <div class="f o"><b>soma</b><small>2 B</small></div>
+          </div>
+          <span class="ex">cabeçalho de 8 B · usado por DNS, vídeo ao vivo, jogos</span></div>
+      </div>
+      <div class="sim" data-sim="tcpudp">
+        <div class="sim-head"><span class="sim-title">6 leituras por um enlace ruim</span>
+          <div class="seg" data-seg="proto"><button data-v="tcp" aria-pressed="true">TCP</button><button data-v="udp" aria-pressed="false">UDP</button></div></div>
+        <svg class="stage" viewBox="0 0 520 280" role="img" aria-label="Diagrama de sequência entre ESP32 e servidor, com pacotes perdidos e retransmissões" style="max-height:290px"></svg>
+        <div class="ctl"><label for="tuL">Pacotes perdidos no caminho</label><output data-o="l"></output><input id="tuL" type="range" min="0" max="50" step="5" value="25" data-in="l"></div>
+        <div class="btn-row"><button class="btn sm" data-act="go">Enviar 6 leituras</button><span class="pill" data-o="rx"></span></div>
+        <div class="stats">
+          <div class="stat mint"><span>entregues</span><b data-o="ok">–</b></div>
+          <div class="stat red"><span>perdidas</span><b data-o="lost">–</b></div>
+          <div class="stat orange"><span>pacotes no ar</span><b data-o="pk">–</b></div>
+          <div class="stat blue"><span>tempo</span><b data-o="ms">–</b></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 14. QUIZ 2 ============ -->
+<section class="slide quiz" data-title="Quiz formativo 1: camadas TCP/IP" data-section="Quiz formativo">
+  <div class="wrap">
+    <p class="kicker">Quiz formativo · 1 de 3</p>
+    <h2>Camadas e pacotes</h2>
+    <div class="qz-list">
+      <div class="qz" data-q="f1_1">
+        <p class="qz-q"><span class="qn">1</span><span>Para mandar <code>ON</code> (2 bytes) pelo Wi‑Fi, viajam cerca de 88 bytes. Por quê?</span></p>
+        <div class="qz-opts" role="group" aria-label="Alternativas da pergunta 1">
+          <button type="button" class="opt" data-v="a"><span class="letter">A</span><p>O Wi‑Fi manda cada byte várias vezes para garantir</p></button>
+          <button type="button" class="opt" data-v="b"><span class="letter">B</span><p>O servidor completa a mensagem com zeros</p></button>
+          <button type="button" class="opt" data-v="c" data-ok><span class="letter">C</span><p>Cada camada põe o seu cabeçalho (endereços, portas, verificação) em volta da mensagem</p></button>
+          <button type="button" class="opt" data-v="d"><span class="letter">D</span><p>A mensagem é convertida em texto antes de sair</p></button>
+        </div>
+        <p class="qz-exp"><span class="qz-verdict"></span> É o <b>encapsulamento</b>: MQTT, TCP, IP e Wi‑Fi acrescentam, cada um, o seu envelope. Para mensagens pequenas, os cabeçalhos pesam mais que o conteúdo.</p>
+      </div>
+      <div class="qz" data-q="f1_2">
+        <p class="qz-q"><span class="qn">2</span><span>Um roteador no meio da Internet recebe o pacote. Que informação ele usa para decidir para onde mandar?</span></p>
+        <div class="qz-opts" role="group" aria-label="Alternativas da pergunta 2">
+          <button type="button" class="opt" data-v="a"><span class="letter">A</span><p>O tópico MQTT</p></button>
+          <button type="button" class="opt" data-v="b"><span class="letter">B</span><p>A porta 1883</p></button>
+          <button type="button" class="opt" data-v="c"><span class="letter">C</span><p>O endereço MAC do ESP32</p></button>
+          <button type="button" class="opt" data-v="d" data-ok><span class="letter">D</span><p>O IP de destino</p></button>
+        </div>
+        <p class="qz-exp"><span class="qz-verdict"></span> Roteadores trabalham na camada <b>Internet</b>: leem o IP de destino. O MAC só vale dentro de cada rede (é trocado a cada salto), e porta e tópico só são abertos no destino.</p>
+      </div>
+      <div class="qz" data-q="f1_3">
+        <p class="qz-q"><span class="qn">3</span><span>Uma câmera transmite vídeo ao vivo. Um quadro que chega atrasado já não serve para nada. Qual transporte faz mais sentido?</span></p>
+        <div class="qz-opts" role="group" aria-label="Alternativas da pergunta 3">
+          <button type="button" class="opt" data-v="a" data-ok><span class="letter">A</span><p>UDP: manda e segue em frente, sem esperar reenvio</p></button>
+          <button type="button" class="opt" data-v="b"><span class="letter">B</span><p>TCP: reenvia cada quadro perdido até ele chegar</p></button>
+          <button type="button" class="opt" data-v="c"><span class="letter">C</span><p>TCP, porque UDP não funciona por Wi‑Fi</p></button>
+          <button type="button" class="opt" data-v="d"><span class="letter">D</span><p>Nenhum: vídeo não passa pela camada de transporte</p></button>
+        </div>
+        <p class="qz-exp"><span class="qz-verdict"></span> Reenviar um quadro velho só atrasaria os próximos. <b>TCP</b> é para quando tudo precisa chegar, em ordem (HTTP, MQTT); <b>UDP</b>, para quando o dado novo vale mais que o perdido.</p>
+      </div>
+    </div>
+    <p class="qz-status" aria-live="polite"></p>
+  </div>
+</section>
+
+<!-- ============ 15. HTTP ============ -->
+<section class="slide" data-title="HTTP: anatomia do pedido e da resposta" data-section="Na Internet: HTTP e MQTT">
+  <div class="wrap">
+    <p class="kicker orange">Aplicação · HTTP</p>
+    <h2>HTTP: pedido e resposta</h2>
+    <div class="grid-2 wide-right">
+      <div class="stack" style="gap:12px">
+        <p class="def orange">O protocolo da web. O <b>cliente</b> faz um pedido e o <b>servidor</b> responde. As duas mensagens são <b>texto</b>, linha por linha, com o mesmo desenho.</p>
+        <div class="stack" style="gap:6px">
+          <span class="fields-cap">Esquema de uma mensagem HTTP</span>
+          <div class="fields">
+            <div class="f o" style="--w:1.6"><b>primeira linha</b><small>método + caminho, ou código</small></div>
+            <div class="f b" style="--w:1.4"><b>cabeçalhos</b><small>Nome: valor</small></div>
+            <div class="f g" style="--w:.8"><b>linha vazia</b><small>fim do cabeçalho</small></div>
+            <div class="f m" style="--w:1.2"><b>corpo</b><small>o dado (opcional)</small></div>
+          </div>
+        </div>
+        <table class="cmp sm">
+          <thead><tr><th>Código</th><th>Significa</th></tr></thead>
+          <tbody>
+            <tr><td>200 OK</td><td class="n g">deu certo, o dado está no corpo</td></tr>
+            <tr><td>201 Created</td><td class="n g">criado: o servidor guardou o que você mandou</td></tr>
+            <tr><td>404 Not Found</td><td class="n b">esse caminho não existe no servidor</td></tr>
+            <tr><td>500</td><td class="n b">deu erro dentro do servidor</td></tr>
+          </tbody>
+        </table>
+        <div class="note">Limite do HTTP em IoT: <b>só o cliente começa</b>. Para saber se há uma ordem nova, o ESP32 teria que perguntar a cada poucos segundos. Ótimo para <b>enviar</b> uma leitura; ruim para <b>receber ordens</b> a qualquer momento.</div>
+      </div>
+      <div class="sim" data-sim="http">
+        <div class="sim-head"><span class="sim-title">Uma ida e volta HTTP</span>
+          <div class="seg" data-seg="sc"><button data-v="get" aria-pressed="true">GET</button><button data-v="post" aria-pressed="false">POST</button><button data-v="e404" aria-pressed="false">404</button></div></div>
+        <svg class="stage" viewBox="0 0 520 70" role="img" aria-label="Cliente e servidor trocando um pedido e uma resposta" style="max-height:80px"></svg>
+        <div class="btn-row"><button class="btn sm" data-act="send">Enviar pedido ▶</button></div>
+        <div class="http-cols">
+          <div><span class="hint" data-o="reqn">pedido</span><pre class="http-msg" data-o="req"></pre></div>
+          <div><span class="hint" data-o="resn">resposta</span><pre class="http-msg" data-o="res"></pre></div>
+        </div>
+        <div class="leg"><span><i style="background:var(--orange)"></i>primeira linha</span><span><i style="background:var(--blue)"></i>cabeçalhos</span><span><i style="background:var(--mint)"></i>corpo</span></div>
+        <p class="step-caption" data-o="cap"></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 16. MQTT: CONCEITOS ============ -->
+<section class="slide" data-title="MQTT: publicar e assinar" data-section="Na Internet: HTTP e MQTT">
+  <div class="wrap">
+    <p class="kicker orange">Aplicação · MQTT</p>
+    <h2>MQTT: publicar e assinar</h2>
+    <div class="grid-2 even">
+      <div class="stack" style="gap:12px">
+        <p class="def orange"><b>MQTT</b> é um protocolo de aplicação leve, sobre TCP, em que ninguém fala diretamente com ninguém: todos falam com um servidor intermediário, o <b>broker</b>.</p>
+        <ul class="bullets small orange">
+          <li><b>Broker</b>: recebe cada mensagem e entrega uma cópia a quem tem interesse.</li>
+          <li><b>Cliente</b>: qualquer um conectado ao broker: ESP32, celular, painel.</li>
+          <li><b>Tópico</b>: o “assunto” da mensagem, como um endereço: <code>casa/sala/led</code>.</li>
+          <li><b>Publicar</b>: enviar uma mensagem para um tópico. <b>Assinar</b>: pedir ao broker as mensagens de um tópico.</li>
+          <li><b>Payload</b>: o conteúdo. Bytes livres: <code>ON</code>, <code>24.5</code>, um JSON.</li>
+        </ul>
+        <p class="analogy">Como grupos de mensagem por assunto: quem posta não sabe quem vai ler; quem entrou no grupo recebe tudo que é postado ali.</p>
+      </div>
+      <div class="stack" style="gap:12px">
+        <div class="card tight blue"><h3>Atravessa o NAT</h3><p>O ESP32 <b>abre a conexão</b> de dentro de casa até o broker e a mantém aberta. As ordens voltam por ela. Ninguém precisa saber o IP de ninguém.</p></div>
+        <div class="card tight mint"><h3>Desacoplado</h3><p>Quem publica não conhece quem assina, nem quantos são. Dá para acrescentar um painel novo sem mexer no ESP32.</p></div>
+        <div class="card tight yellow"><h3>Leve</h3><p>Cabeçalho de 2 bytes. Criado em 1999 para monitorar oleodutos por satélite, onde cada byte custava caro. Hoje é padrão aberto (OASIS).</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 17. ANATOMIA DO PUBLISH ============ -->
+<section class="slide" data-title="Anatomia de uma mensagem MQTT" data-section="Na Internet: HTTP e MQTT">
+  <div class="wrap">
+    <p class="kicker orange">Aplicação · MQTT</p>
+    <h2>Anatomia de um PUBLISH, byte a byte</h2>
+    <div class="grid-2 wide-right">
+      <div class="stack" style="gap:12px">
+        <p class="def orange">Diferente do HTTP, o MQTT é <b>binário</b>: cada byte tem um lugar certo. Todo pacote começa com um byte que diz o <b>tipo</b> e algumas <b>opções</b>, seguido do tamanho do resto.</p>
+        <div class="stack" style="gap:6px">
+          <span class="fields-cap">Esquema do PUBLISH</span>
+          <div class="fields">
+            <div class="f o"><b>tipo + opções</b><small>1 B</small></div>
+            <div class="f y"><b>tamanho</b><small>1–4 B</small></div>
+            <div class="f b" style="--w:1.8"><b>tópico</b><small>2 B de tamanho + texto</small></div>
+            <div class="f r" style="--w:.9"><b>nº pacote</b><small>só QoS 1 e 2</small></div>
+            <div class="f m" style="--w:1.5"><b>conteúdo</b><small>o resto</small></div>
+          </div>
+        </div>
+        <table class="cmp sm">
+          <thead><tr><th>Pacote</th><th>1º byte</th><th>Para quê</th></tr></thead>
+          <tbody>
+            <tr><td>CONNECT / CONNACK</td><td class="n">0x10 / 0x20</td><td class="n">entrar no broker / aceito</td></tr>
+            <tr><td>SUBSCRIBE / SUBACK</td><td class="n">0x82 / 0x90</td><td class="n">assinar um tópico / ok</td></tr>
+            <tr><td>PUBLISH</td><td class="n">0x30 a 0x3D</td><td class="n">mandar uma mensagem</td></tr>
+            <tr><td>PUBACK</td><td class="n">0x40</td><td class="n">“recebi” (QoS 1)</td></tr>
+            <tr><td>PINGREQ / PINGRESP</td><td class="n">0xC0 / 0xD0</td><td class="n">“ainda estou aqui”</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="sim" data-sim="mqttpkt">
+        <div class="sim-head"><span class="sim-title">Monte um PUBLISH</span>
+          <div class="seg" data-seg="qos"><button data-v="0" aria-pressed="true">QoS 0</button><button data-v="1" aria-pressed="false">QoS 1</button><button data-v="2" aria-pressed="false">QoS 2</button></div></div>
+        <div class="grid-2 even" style="gap:10px">
+          <div class="ctl"><label for="mpT">Tópico</label><output></output><input id="mpT" class="tin sm" type="text" value="casa/sala/led" maxlength="60" data-in="t" spellcheck="false" autocomplete="off"></div>
+          <div class="ctl"><label for="mpP">Conteúdo</label><output></output><input id="mpP" class="tin sm" type="text" value="ON" maxlength="60" data-in="p" spellcheck="false" autocomplete="off"></div>
+        </div>
+        <div class="btn-row">
+          <button class="btn ghost sm" data-ex="casa/sala/led|ON">LED ON</button>
+          <button class="btn ghost sm" data-ex="casa/sala/temp|24.5">temperatura</button>
+          <button class="btn ghost sm" data-ex='casa/sala/clima|{"t":24.5,"u":61}'>JSON</button>
+          <label class="chk"><input type="checkbox" data-in="r"> retain</label>
+        </div>
+        <div class="stack" style="gap:4px">
+          <span class="hint">1º byte: <span style="color:var(--orange)">tipo 3 = PUBLISH</span> · DUP · <span style="color:var(--blue)">QoS</span> · <span style="color:var(--mint)">retain</span></span>
+          <p class="b1" data-o="b1"></p>
+        </div>
+        <div class="pkt" data-o="pkt"></div>
+        <div class="btn-row"><span class="pill" data-o="tot"></span></div>
+        <p class="dump" data-o="dump"></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 18. SIM PUB/SUB ============ -->
+<section class="slide" data-title="O broker distribuindo mensagens" data-section="Na Internet: HTTP e MQTT">
+  <div class="wrap">
+    <p class="kicker orange">Aplicação · MQTT</p>
+    <h2>O broker distribuindo mensagens</h2>
+    <div class="grid-2 wide-right">
+      <div class="stack" style="gap:12px">
+        <ol class="how">
+          <li>Cada cliente conecta ao broker e diz quais tópicos <b>assina</b>.</li>
+          <li>Um cliente <b>publica</b> em um tópico. A mensagem vai só até o broker.</li>
+          <li>O broker compara o tópico com cada assinatura e entrega uma <b>cópia</b> a cada interessado.</li>
+        </ol>
+        <table class="cmp sm">
+          <thead><tr><th>Cliente</th><th>Publica em</th><th>Assina</th></tr></thead>
+          <tbody>
+            <tr><td>Celular</td><td class="n">casa/sala/led</td><td class="n">casa/+/temp</td></tr>
+            <tr><td>ESP32 LED</td><td class="n">–</td><td class="n">casa/sala/led</td></tr>
+            <tr><td>ESP32 sensor</td><td class="n">casa/sala/temp</td><td class="n">–</td></tr>
+            <tr><td>Painel</td><td class="n">–</td><td class="n">casa/#</td></tr>
+          </tbody>
+        </table>
+        <p class="hint">O sensor publica sozinho a cada 6 s. Desconecte o painel: o sensor continua igual, sem saber de nada.</p>
+      </div>
+      <div class="sim" data-sim="pubsub">
+        <div class="sim-head"><span class="sim-title">Broker MQTT</span><span class="pill info" data-o="cnt"></span></div>
+        <svg class="stage" viewBox="0 0 520 290" role="img" aria-label="Quatro clientes conectados a um broker central trocando mensagens" style="max-height:300px"></svg>
+        <div class="btn-row">
+          <button class="btn sm" data-act="led">Celular: LED <span data-o="nx">ON</span></button>
+          <button class="btn orange sm" data-act="temp">Sensor: publicar agora</button>
+          <button class="btn ghost sm" data-act="panel" aria-pressed="false">Desconectar painel</button>
+        </div>
+        <pre class="console" data-o="log" style="height:110px"></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 19. TÓPICOS E CURINGAS ============ -->
+<section class="slide" data-title="Tópicos e curingas + e #" data-section="Na Internet: HTTP e MQTT">
+  <div class="wrap">
+    <p class="kicker orange">Aplicação · MQTT</p>
+    <h2>Tópicos e curingas</h2>
+    <div class="grid-2 wide-right">
+      <div class="stack" style="gap:12px">
+        <p class="def orange">Tópicos são textos com <b>níveis</b> separados por <code>/</code>, do mais geral ao mais específico. Não precisam ser criados antes: existem quando alguém publica.</p>
+        <table class="cmp sm">
+          <thead><tr><th>Curinga</th><th>Significa</th><th>Exemplo</th></tr></thead>
+          <tbody>
+            <tr><td>+</td><td class="n">exatamente <b>um</b> nível qualquer</td><td class="n"><code>casa/+/temp</code></td></tr>
+            <tr><td>#</td><td class="n">qualquer quantidade de níveis, só no <b>fim</b></td><td class="n"><code>casa/#</code></td></tr>
+          </tbody>
+        </table>
+        <ul class="bullets small orange">
+          <li>Curingas só servem para <b>assinar</b>. Ao publicar, o tópico é sempre exato.</li>
+          <li>Maiúsculas importam: <code>Casa/led</code> e <code>casa/led</code> são tópicos diferentes.</li>
+          <li>Em broker público, todo mundo usa o mesmo servidor: comece os tópicos com um prefixo só seu, como <code>inteli/m04/g3/…</code>.</li>
+        </ul>
+      </div>
+      <div class="sim" data-sim="topics">
+        <div class="sim-head"><span class="sim-title">Teste uma assinatura</span><span class="pill" data-o="n"></span></div>
+        <div class="ctl"><label for="tpF">Filtro de assinatura</label><output data-o="ok"></output><input id="tpF" class="tin" type="text" value="casa/+/led" data-in="f" spellcheck="false" autocomplete="off"></div>
+        <div class="btn-row" data-o="pre"></div>
+        <ul class="topic-list" data-o="list"></ul>
+        <p class="step-caption" data-o="why"></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 20. A CONVERSA MQTT ============ -->
+<section class="slide" data-title="A conversa MQTT: CONNECT, SUBSCRIBE, PUBLISH, PING" data-section="Na Internet: HTTP e MQTT">
+  <div class="wrap">
+    <p class="kicker orange">Aplicação · MQTT</p>
+    <h2>A conversa entre o cliente e o broker</h2>
+    <div class="grid-2 even">
+      <figure class="stack" style="gap:6px">
+        <svg viewBox="0 0 480 360" role="img" aria-label="Diagrama de sequência MQTT: CONNECT, CONNACK, SUBSCRIBE, SUBACK, PUBLISH, PINGREQ, PINGRESP" style="width:100%">
+          <defs>
+            <marker id="sqA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 Z" style="fill:var(--wire)"/></marker>
+          </defs>
+          <g font-family="IBM Plex Mono, monospace" font-size="12">
+            <rect x="20" y="8" width="120" height="32" rx="8" style="fill:var(--plot);stroke:var(--mint)" stroke-width="2"/>
+            <text x="80" y="29" text-anchor="middle" style="fill:var(--mint)" font-weight="600">ESP32</text>
+            <rect x="340" y="8" width="120" height="32" rx="8" style="fill:var(--plot);stroke:var(--orange)" stroke-width="2"/>
+            <text x="400" y="29" text-anchor="middle" style="fill:var(--orange)" font-weight="600">broker</text>
+            <path d="M80 40 V352 M400 40 V352" style="stroke:var(--border)" stroke-width="2" stroke-dasharray="4 4"/>
+            <g stroke-width="2" style="stroke:var(--wire)" marker-end="url(#sqA)">
+              <path d="M82 70 H396"/><path d="M398 100 H84"/>
+              <path d="M82 140 H396"/><path d="M398 170 H84"/>
+              <path d="M398 210 H84"/>
+              <path d="M82 250 H396"/>
+              <path d="M82 300 H396"/><path d="M398 330 H84"/>
+            </g>
+            <text x="240" y="64" text-anchor="middle" style="fill:var(--text)">CONNECT  id, keepalive, último desejo</text>
+            <text x="240" y="94" text-anchor="middle" style="fill:var(--mint)">CONNACK  aceito</text>
+            <text x="240" y="134" text-anchor="middle" style="fill:var(--text)">SUBSCRIBE  casa/sala/led</text>
+            <text x="240" y="164" text-anchor="middle" style="fill:var(--mint)">SUBACK</text>
+            <text x="240" y="204" text-anchor="middle" style="fill:var(--orange)">PUBLISH  casa/sala/led = ON</text>
+            <text x="240" y="244" text-anchor="middle" style="fill:var(--blue)">PUBLISH  casa/sala/led/estado = ON</text>
+            <text x="240" y="278" text-anchor="middle" style="fill:var(--muted)" font-size="11">… alguns segundos sem nada para dizer …</text>
+            <text x="240" y="294" text-anchor="middle" style="fill:var(--text-2)">PINGREQ</text>
+            <text x="240" y="324" text-anchor="middle" style="fill:var(--text-2)">PINGRESP</text>
+          </g>
+        </svg>
+      </figure>
+      <div class="stack" style="gap:12px">
+        <ol class="how">
+          <li><b>CONNECT</b>: o cliente se apresenta com um <b>nome único</b> (ID), de quanto em quanto tempo vai dar sinal de vida (keepalive) e, se quiser, um “último desejo”.</li>
+          <li><b>SUBSCRIBE</b>: avisa quais tópicos quer receber.</li>
+          <li><b>PUBLISH</b>: em qualquer sentido, a qualquer momento, pela mesma conexão.</li>
+          <li><b>PINGREQ / PINGRESP</b>: se ficou um tempo sem tráfego, o cliente manda um “ainda estou aqui”.</li>
+        </ol>
+        <div class="note">Se o broker passar <b>1,5 × keepalive</b> sem ouvir o cliente, considera que ele caiu. É assim que o broker descobre uma queda sem aviso.</div>
+        <div class="note warn">Dois clientes com o <b>mesmo ID</b>: o broker derruba o mais antigo. O ID precisa ser único, por exemplo derivado do MAC do chip.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 21. QOS, RETAIN, LWT ============ -->
+<section class="slide" data-title="QoS, retain e último desejo" data-section="Na Internet: HTTP e MQTT">
+  <div class="wrap">
+    <p class="kicker orange">Aplicação · MQTT</p>
+    <h2>QoS, retain e último desejo</h2>
+    <div class="grid-2 wide-right">
+      <div class="stack" style="gap:10px">
+        <table class="cmp sm">
+          <thead><tr><th>QoS</th><th>Garantia</th><th>Pacotes</th></tr></thead>
+          <tbody>
+            <tr><td>0</td><td class="n">no máximo uma vez: pode <b>perder</b></td><td class="n">PUBLISH</td></tr>
+            <tr><td>1</td><td class="n">pelo menos uma vez: pode <b>duplicar</b></td><td class="n">PUBLISH, PUBACK</td></tr>
+            <tr><td>2</td><td class="n">exatamente uma vez</td><td class="n">PUBLISH, PUBREC, PUBREL, PUBCOMP</td></tr>
+          </tbody>
+        </table>
+        <div class="card tight blue"><h3>Retain · o broker guarda a última</h3><p>Uma mensagem com <b>retain</b> (o último bit do 1º byte) fica guardada no tópico. Quem assinar depois recebe na hora o último valor. Ideal para <b>estado</b>: “o LED está ON”.</p></div>
+        <div class="card tight red"><h3>Último desejo (LWT)</h3><p>No CONNECT, o cliente deixa uma mensagem com o broker: “se eu sumir sem me despedir, publique <code>offline</code> em <code>…/status</code>”. Assim os outros sabem que ele caiu.</p></div>
+        <p class="hint">Mais garantia = mais pacotes no ar. Para leituras que se repetem a cada segundo, QoS 0 basta.</p>
+      </div>
+      <div class="sim" data-sim="qos">
+        <div class="sim-head"><span class="sim-title">5 mensagens por um enlace ruim</span>
+          <div class="seg" data-seg="qos"><button data-v="0" aria-pressed="true">QoS 0</button><button data-v="1" aria-pressed="false">QoS 1</button><button data-v="2" aria-pressed="false">QoS 2</button></div></div>
+        <svg class="stage" viewBox="0 0 520 280" role="img" aria-label="Diagrama de sequência entre cliente e broker para o QoS escolhido" style="max-height:290px"></svg>
+        <div class="ctl"><label for="qoL">Pacotes perdidos no caminho</label><output data-o="l"></output><input id="qoL" type="range" min="0" max="40" step="5" value="25" data-in="l"></div>
+        <div class="btn-row"><button class="btn sm" data-act="go">Publicar 5 mensagens</button></div>
+        <div class="stats">
+          <div class="stat mint"><span>entregues</span><b data-o="ok">–</b></div>
+          <div class="stat red"><span>perdidas</span><b data-o="lost">–</b></div>
+          <div class="stat orange"><span>duplicadas</span><b data-o="dup">–</b></div>
+          <div class="stat blue"><span>pacotes no ar</span><b data-o="pk">–</b></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 22. QUIZ 3 ============ -->
+<section class="slide quiz" data-title="Quiz formativo 2: HTTP e MQTT" data-section="Quiz formativo">
+  <div class="wrap">
+    <p class="kicker">Quiz formativo · 2 de 3</p>
+    <h2>HTTP e MQTT</h2>
+    <div class="qz-list">
+      <div class="qz" data-q="f2_1">
+        <p class="qz-q"><span class="qn">1</span><span>A primeira linha da resposta HTTP é <code>HTTP/1.1 404 Not Found</code>. O que aconteceu?</span></p>
+        <div class="qz-opts" role="group" aria-label="Alternativas da pergunta 1">
+          <button type="button" class="opt" data-v="a"><span class="letter">A</span><p>A rede caiu no meio do caminho</p></button>
+          <button type="button" class="opt" data-v="b" data-ok><span class="letter">B</span><p>O servidor recebeu o pedido, mas o caminho pedido não existe</p></button>
+          <button type="button" class="opt" data-v="c"><span class="letter">C</span><p>Deu certo e o dado está no corpo</p></button>
+          <button type="button" class="opt" data-v="d"><span class="letter">D</span><p>O pedido foi recusado por ter ido em UDP</p></button>
+        </div>
+        <p class="qz-exp"><span class="qz-verdict"></span> Se chegou uma resposta, a conexão funcionou. O <b>404</b> diz que o recurso pedido (o caminho depois do GET) não existe. Sucesso seria 200; erro dentro do servidor, 500.</p>
+      </div>
+      <div class="qz" data-q="f2_2">
+        <p class="qz-q"><span class="qn">2</span><span>Um PUBLISH com QoS 0 e sem retain começa com o byte <code>0x30</code>. Ligando o retain, o primeiro byte passa a ser:</span></p>
+        <div class="qz-opts" role="group" aria-label="Alternativas da pergunta 2">
+          <button type="button" class="opt" data-v="a" data-ok><span class="letter">A</span><p><code>0x31</code></p></button>
+          <button type="button" class="opt" data-v="b"><span class="letter">B</span><p><code>0x32</code></p></button>
+          <button type="button" class="opt" data-v="c"><span class="letter">C</span><p><code>0x40</code></p></button>
+          <button type="button" class="opt" data-v="d"><span class="letter">D</span><p>Continua <code>0x30</code>: o retain vai no fim do pacote</p></button>
+        </div>
+        <p class="qz-exp"><span class="qz-verdict"></span> Os 4 bits da esquerda dizem o tipo (0011 = 3, PUBLISH); os 4 da direita são opções: DUP, dois bits de QoS e, no último, <b>retain</b>. 0011 0001 = <b>0x31</b>. O 0x32 seria QoS 1.</p>
+      </div>
+      <div class="qz" data-q="f2_3">
+        <p class="qz-q"><span class="qn">3</span><span>O painel assina <code>casa/+/temp</code>. Qual destas mensagens ele <b>não</b> recebe?</span></p>
+        <div class="qz-opts" role="group" aria-label="Alternativas da pergunta 3">
+          <button type="button" class="opt" data-v="a"><span class="letter">A</span><p><code>casa/sala/temp</code></p></button>
+          <button type="button" class="opt" data-v="b"><span class="letter">B</span><p><code>casa/quarto/temp</code></p></button>
+          <button type="button" class="opt" data-v="c"><span class="letter">C</span><p><code>casa/cozinha/temp</code></p></button>
+          <button type="button" class="opt" data-v="d" data-ok><span class="letter">D</span><p><code>casa/sala/temp/max</code></p></button>
+        </div>
+        <p class="qz-exp"><span class="qz-verdict"></span> O <b>+</b> vale exatamente <b>um</b> nível. <code>casa/sala/temp/max</code> tem um nível a mais. Para pegar tudo abaixo de <code>casa</code>, use <code>casa/#</code>.</p>
+      </div>
+      <div class="qz" data-q="f2_4">
+        <p class="qz-q"><span class="qn">4</span><span>O celular publicou <code>ON</code> em <code>casa/sala/led</code> e o LED acendeu. Faltou luz; o ESP32 reiniciou, reconectou e assinou o tópico de novo… e o LED ficou apagado. Qual a correção mais simples?</span></p>
+        <div class="qz-opts" role="group" aria-label="Alternativas da pergunta 4">
+          <button type="button" class="opt" data-v="a"><span class="letter">A</span><p>Usar QoS 2 na assinatura</p></button>
+          <button type="button" class="opt" data-v="b"><span class="letter">B</span><p>Aumentar o keepalive</p></button>
+          <button type="button" class="opt" data-v="c" data-ok><span class="letter">C</span><p>Publicar o comando com <b>retain</b></p></button>
+          <button type="button" class="opt" data-v="d"><span class="letter">D</span><p>Fazer o celular publicar <code>ON</code> a cada segundo</p></button>
+        </div>
+        <p class="qz-exp"><span class="qz-verdict"></span> Sem retain, o broker entrega a mensagem a quem está conectado naquela hora e esquece. Com <b>retain</b>, ele guarda a última e entrega na hora a quem assinar depois, como o ESP32 que acabou de voltar.</p>
+      </div>
+    </div>
+    <p class="qz-status" aria-live="polite"></p>
+  </div>
+</section>
+
+<!-- ============ 23. ESP-NOW ============ -->
+<section class="slide" data-title="ESP‑NOW: uma struct virando bytes" data-section="Direto pelo ar">
+  <div class="wrap">
+    <p class="kicker" style="color:var(--yellow)">Direto pelo ar · ESP‑NOW</p>
+    <h2>ESP‑NOW: de ESP32 para ESP32, sem roteador</h2>
+    <div class="grid-2 wide-right">
+      <div class="stack" style="gap:12px">
+        <p class="def">Protocolo da Espressif: um ESP32 manda um pacote <b>direto para o endereço MAC</b> de outro, sem entrar em rede nenhuma. Liga e transmite em milissegundos, por isso é bom para bateria. O rádio de quem recebe confirma a chegada.</p>
+        <div class="stack" style="gap:6px">
+          <span class="fields-cap">Esquema do quadro ESP‑NOW</span>
+          <div class="fields">
+            <div class="f y" style="--w:1.4"><b>MAC destino</b><small>6 B</small></div>
+            <div class="f y" style="--w:1.4"><b>MAC origem</b><small>6 B</small></div>
+            <div class="f g" style="--w:1.2"><b>cabeçalho</b><small>Espressif</small></div>
+            <div class="f m" style="--w:2.4"><b>seus dados</b><small>até 250 B</small></div>
+            <div class="f r" style="--w:.7"><b>FCS</b><small>4 B</small></div>
+          </div>
+        </div>
+        <ul class="bullets small">
+          <li>Não há tópico nem texto: os dados são <b>bytes crus</b>. O jeito comum é mandar uma <b>struct</b>, um “molde” com campos de tamanho fixo.</li>
+          <li>Quem recebe precisa usar <b>o mesmo molde</b>, na mesma ordem, para entender os bytes.</li>
+          <li>Alcance de ~100–200 m em campo aberto. Sozinho, não chega à Internet.</li>
+        </ul>
+      </div>
+      <div class="sim" data-sim="espnow">
+        <div class="sim-head"><span class="sim-title">struct Leitura · 8 bytes</span><button class="btn orange sm" data-act="alt" aria-pressed="false">Receptor com outro molde</button></div>
+        <div class="grid-2 even" style="gap:10px">
+          <div class="ctl"><label for="enT">temperatura (float)</label><output data-o="tv"></output><input id="enT" type="range" min="-10" max="50" step="0.5" value="24.5" data-in="temp"></div>
+          <div class="ctl"><label for="enU">umidade (uint16)</label><output data-o="uv"></output><input id="enU" type="range" min="0" max="100" step="1" value="61" data-in="umid"></div>
+          <div class="ctl"><label for="enI">id do sensor (uint8)</label><output data-o="iv"></output><input id="enI" type="range" min="1" max="9" step="1" value="3" data-in="id"></div>
+          <div class="ctl" style="align-content:end"><label class="chk"><input type="checkbox" data-in="bt"> botão apertado (uint8)</label></div>
+        </div>
+        <span class="hint">bytes no campo “seus dados”, na ordem em que saem</span>
+        <div class="pkt" data-o="pkt"></div>
+        <span class="hint">o que o receptor entende</span>
+        <div class="stats four" data-o="rx"></div>
+        <p class="step-caption" data-o="cap"></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 24. BLE ============ -->
+<section class="slide" data-title="BLE: anúncio, serviço e característica" data-section="Direto pelo ar">
+  <div class="wrap">
+    <p class="kicker" style="color:var(--yellow)">Direto pelo ar · BLE</p>
+    <h2>BLE: o celular lê valores do ESP32</h2>
+    <div class="grid-2 even">
+      <div class="stack" style="gap:12px">
+        <p class="def"><b>Bluetooth Low Energy</b>: feito para trocar valores pequenos gastando pouca bateria. O ESP32 é o <b>periférico</b> (tem os dados); o celular é a <b>central</b> (procura, conecta e lê).</p>
+        <div class="stack" style="gap:6px">
+          <span class="fields-cap">1 · Anúncio: “estou aqui” (a cada ~100 ms)</span>
+          <div class="fields">
+            <div class="f y" style="--w:1.2"><b>MAC</b><small>6 B</small></div>
+            <div class="f b" style="--w:1.6"><b>nome</b><small>“ESP32‑Sala”</small></div>
+            <div class="f o" style="--w:1.6"><b>serviços</b><small>“tenho sensor”</small></div>
+          </div>
+          <p class="fields-note"><span>até 31 bytes de dados</span><span>qualquer celular por perto ouve</span></p>
+        </div>
+        <span class="fields-cap">2 · Depois de conectar: os dados organizados em árvore (GATT)</span>
+        <div class="gatt">
+          <div class="l1"><b>ESP32‑Sala</b> · o aparelho</div>
+          <div class="l2"><b>Serviço</b> Sensor ambiental · <code>0x181A</code></div>
+          <div class="l3"><b>Característica</b> Temperatura · <code>0x2A6E</code> · pode <b>ler</b> e <b>notificar</b></div>
+        </div>
+      </div>
+      <div class="stack" style="gap:12px">
+        <span class="fields-cap">3 · A mensagem: uma notificação de temperatura</span>
+        <div class="fields">
+          <div class="f g"><b>cabeçalho</b><small>tipo: notificação</small></div>
+          <div class="f o"><b>qual caract.</b><small>2 B (handle)</small></div>
+          <div class="f m" style="--w:1.3"><b>valor</b><small>92 09</small></div>
+        </div>
+        <ol class="how">
+          <li>O sensor leu <b>24,50 °C</b>.</li>
+          <li>A característica de temperatura usa centésimos de grau: 24,50 × 100 = <b>2450</b>.</li>
+          <li>2450 = <code>0x0992</code>, em 2 bytes. Saem com o byte menor primeiro: <b><code>92 09</code></b>.</li>
+          <li>O celular junta de volta: 0x0992 = 2450 → 24,50 °C.</li>
+        </ol>
+        <div class="card tight mint"><h3>Ler × notificar</h3><p><b>Ler</b>: o celular pergunta quando quer. <b>Notificar</b>: o celular assina uma vez e o ESP32 avisa sempre que o valor muda, parecido com assinar um tópico no MQTT, só que sem broker e a poucos metros.</p></div>
+        <p class="hint">Os números 0x181A e 0x2A6E são padronizados: qualquer app de Bluetooth reconhece “temperatura” sem combinar nada antes.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 25. COMPARATIVO GERAL ============ -->
+<section class="slide" data-title="Qual protocolo usar" data-section="Síntese">
+  <div class="wrap">
+    <p class="kicker">Comparando</p>
+    <h2>Qual protocolo usar</h2>
+    <table class="cmp">
+      <thead><tr><th>Protocolo</th><th>Meio</th><th>Alcance</th><th>Quem fala com quem</th><th>Como é a mensagem</th><th>Uso típico</th></tr></thead>
+      <tbody>
+        <tr><td>ESP‑NOW</td><td class="n">rádio Wi‑Fi</td><td class="n">~100–200 m</td><td class="n">ESP32 ↔ ESP32</td><td class="n">MAC + até 250 B crus</td><td class="n">controle remoto, rede de sensores</td></tr>
+        <tr><td>BLE</td><td class="n">rádio Bluetooth</td><td class="n">~10 m</td><td class="n">celular ↔ ESP32</td><td class="n">características com valor</td><td class="n">app de celular, wearable</td></tr>
+        <tr><td>HTTP</td><td class="n">Wi‑Fi + Internet</td><td class="n">o mundo</td><td class="n">cliente pergunta, servidor responde</td><td class="n">texto: linha, cabeçalhos, corpo</td><td class="n">enviar leituras, páginas</td></tr>
+        <tr><td>MQTT</td><td class="n">Wi‑Fi + Internet</td><td class="n">o mundo</td><td class="n">todos via broker</td><td class="n">binário: tipo, tópico, conteúdo</td><td class="n">receber ordens, telemetria</td></tr>
+      </tbody>
+    </table>
+    <div class="note">Três perguntas escolhem o protocolo sem fio: <b>a que distância</b> está o outro bloco? <b>Quem começa</b> a conversa? <b>O que acontece</b> quando a mensagem se perde?</div>
+  </div>
+</section>
+
+<!-- ============ 26. QUIZ 4 ============ -->
+<section class="slide quiz" data-title="Quiz formativo 3: escolha o protocolo" data-section="Quiz formativo">
+  <div class="wrap">
+    <p class="kicker">Quiz formativo · 3 de 3</p>
+    <h2>Escolha o protocolo</h2>
+    <div class="qz-list">
+      <div class="qz" data-q="f3_1">
+        <p class="qz-q"><span class="qn">1</span><span>Uma pulseira com ESP32 mede os batimentos e mostra o valor num app de celular, a um ou dois metros. Precisa gastar pouca bateria e não há roteador por perto.</span></p>
+        <div class="qz-opts" role="group" aria-label="Alternativas da pergunta 1">
+          <button type="button" class="opt" data-v="a"><span class="letter">A</span><p>HTTP</p></button>
+          <button type="button" class="opt" data-v="b" data-ok><span class="letter">B</span><p>BLE</p></button>
+          <button type="button" class="opt" data-v="c"><span class="letter">C</span><p>ESP‑NOW</p></button>
+          <button type="button" class="opt" data-v="d"><span class="letter">D</span><p>MQTT</p></button>
+        </div>
+        <p class="qz-exp"><span class="qz-verdict"></span> <b>BLE</b> é feito para isso: celular e ESP32 conversam direto, a poucos metros, gastando pouco. O ESP32 publica o valor numa característica e o app é notificado quando ele muda. ESP‑NOW só fala com outro ESP32; HTTP e MQTT precisariam de rede Wi‑Fi.</p>
+      </div>
+      <div class="qz" data-q="f3_2">
+        <p class="qz-q"><span class="qn">2</span><span>Dois ESP32 numa fazenda, a 150 m um do outro, sem roteador nem Internet. Um deles é um controle remoto com um botão.</span></p>
+        <div class="qz-opts" role="group" aria-label="Alternativas da pergunta 2">
+          <button type="button" class="opt" data-v="a"><span class="letter">A</span><p>HTTP</p></button>
+          <button type="button" class="opt" data-v="b"><span class="letter">B</span><p>MQTT com broker público</p></button>
+          <button type="button" class="opt" data-v="c" data-ok><span class="letter">C</span><p>ESP‑NOW</p></button>
+          <button type="button" class="opt" data-v="d"><span class="letter">D</span><p>BLE</p></button>
+        </div>
+        <p class="qz-exp"><span class="qz-verdict"></span> <b>ESP‑NOW</b> manda o pacote direto para o MAC do outro ESP32, sem rede nenhuma, e alcança ~100–200 m. HTTP e MQTT precisariam de roteador e Internet; BLE alcança só uns 10 m.</p>
+      </div>
+      <div class="qz" data-q="f3_3">
+        <p class="qz-q"><span class="qn">3</span><span>Você quer acender o LED de casa estando em outra cidade. O ESP32 está na rede de casa, atrás do roteador (NAT).</span></p>
+        <div class="qz-opts" role="group" aria-label="Alternativas da pergunta 3">
+          <button type="button" class="opt" data-v="a"><span class="letter">A</span><p>O celular abre <code>http://192.168.0.23</code> direto no ESP32</p></button>
+          <button type="button" class="opt" data-v="b"><span class="letter">B</span><p>BLE do celular</p></button>
+          <button type="button" class="opt" data-v="c"><span class="letter">C</span><p>ESP32 como ponto de acesso, criando a própria rede</p></button>
+          <button type="button" class="opt" data-v="d" data-ok><span class="letter">D</span><p>ESP32 e celular conectados a um broker MQTT na Internet</p></button>
+        </div>
+        <p class="qz-exp"><span class="qz-verdict"></span> O IP 192.168.0.23 é <b>privado</b> e o NAT bloqueia quem vem de fora. Com <b>MQTT</b>, o ESP32 abre a conexão de dentro para fora até o broker, e as ordens voltam por ela. BLE e o ponto de acesso só alcançam quem está perto.</p>
+      </div>
+    </div>
+    <p class="qz-status" aria-live="polite"></p>
+  </div>
+</section>
+
+<!-- ============ 27. SÍNTESE ============ -->
+<section class="slide" data-title="Síntese: do Wi‑Fi ao MQTT" data-section="Síntese">
+  <div class="wrap">
+    <p class="kicker">Síntese</p>
+    <h2>O que levar desta aula</h2>
+    <div class="check">
+      <div class="card blue"><h3>Pelo ar</h3><ul>
+        <li>Estação: o ESP32 entra na rede do roteador e chega à Internet</li>
+        <li>Ponto de acesso: o ESP32 é a rede, sem Internet</li>
+        <li>Direto: ESP‑NOW (ESP32 ↔ ESP32) e BLE (celular ↔ ESP32)</li></ul></div>
+      <div class="card mint"><h3>Pela rede</h3><ul>
+        <li>4 camadas: rede, Internet, transporte, aplicação</li>
+        <li>Cada camada põe o seu envelope (cabeçalho)</li>
+        <li>MAC, IP e porta: três endereços em cada pacote</li>
+        <li>TCP garante a entrega; UDP é leve e rápido</li></ul></div>
+      <div class="card orange"><h3>Na Internet</h3><ul>
+        <li><b>HTTP</b>: texto; o cliente pergunta, o servidor responde</li>
+        <li><b>MQTT</b>: binário; todos falam com o broker por tópicos</li>
+        <li>1º byte do MQTT: tipo + QoS + retain</li>
+        <li>Curingas <code>+</code> e <code>#</code> só na assinatura</li></ul></div>
+      <div class="card"><h3 style="color:var(--yellow)">Direto pelo ar</h3><ul>
+        <li><b>ESP‑NOW</b>: MAC + até 250 bytes; mesmo molde (struct) dos dois lados</li>
+        <li><b>BLE</b>: anúncio, serviço, característica; ler ou notificar</li></ul></div>
+    </div>
+    <div class="note">Para qualquer protocolo novo que aparecer no projeto, faça as mesmas perguntas: <b>que rádio e que alcance, quem começa, como o destino é escolhido, como é o desenho da mensagem e o que acontece quando ela se perde.</b></div>
+  </div>
+</section>
+
+<!-- ============ ATIVIDADE PRÁTICA: O SISTEMA ============ -->
+<section class="slide" data-title="Atividade prática: ESP32, broker e dashboard" data-section="Atividade prática">
+  <div class="wrap">
+    <p class="kicker">Atividade prática · 1 de 2</p>
+    <h2>Seu sistema IoT: ESP32 ⇄ broker ⇄ dashboard</h2>
+    <p class="lead">Você vai criar um broker MQTT seu no <b>EMQX Cloud</b> (plano Serverless, gratuito) e fazer um ESP32 conversar com uma página web nos dois sentidos. A dashboard liga e desliga um LED e mostra dois sensores em tempo real. O passo a passo está no documento da atividade; nenhum código é fornecido.</p>
+    <div class="grid-2 even">
+      <figure class="stack" style="gap:6px">
+        <svg viewBox="0 0 520 240" role="img" aria-label="ESP32 e dashboard conectados ao broker EMQX: o ESP32 publica sensores e estado e assina comando; a dashboard assina sensores e estado e publica comando" style="width:100%">
+          <defs>
+            <marker id="prA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 Z" style="fill:var(--wire)"/></marker>
+          </defs>
+          <g font-family="IBM Plex Mono, monospace" font-size="12">
+            <rect x="6" y="80" width="128" height="80" rx="10" style="fill:var(--plot);stroke:var(--mint)" stroke-width="2"/>
+            <text x="70" y="110" text-anchor="middle" style="fill:var(--mint)" font-weight="600">ESP32</text>
+            <text x="70" y="128" text-anchor="middle" style="fill:var(--muted)" font-size="10.5">LED · botão</text>
+            <text x="70" y="143" text-anchor="middle" style="fill:var(--muted)" font-size="10.5">2 sensores</text>
+            <rect x="196" y="80" width="128" height="80" rx="10" style="fill:var(--plot);stroke:var(--orange)" stroke-width="2"/>
+            <text x="260" y="110" text-anchor="middle" style="fill:var(--orange)" font-weight="600">broker</text>
+            <text x="260" y="128" text-anchor="middle" style="fill:var(--muted)" font-size="10.5">EMQX Cloud</text>
+            <text x="260" y="143" text-anchor="middle" style="fill:var(--muted)" font-size="10.5">usuário e senha</text>
+            <rect x="386" y="80" width="128" height="80" rx="10" style="fill:var(--plot);stroke:var(--blue)" stroke-width="2"/>
+            <text x="450" y="110" text-anchor="middle" style="fill:var(--blue)" font-weight="600">dashboard</text>
+            <text x="450" y="128" text-anchor="middle" style="fill:var(--muted)" font-size="10.5">HTML + JS</text>
+            <text x="450" y="143" text-anchor="middle" style="fill:var(--muted)" font-size="10.5">no navegador</text>
+            <g stroke-width="2" style="stroke:var(--wire)" marker-end="url(#prA)">
+              <path d="M136 108 H192"/><path d="M194 132 H138"/>
+              <path d="M326 108 H382"/><path d="M384 132 H328"/>
+            </g>
+            <text x="165" y="60" text-anchor="middle" style="fill:var(--mint)" font-size="11">TLS · 8883</text>
+            <text x="355" y="60" text-anchor="middle" style="fill:var(--blue)" font-size="11">wss · 8084</text>
+            <text x="165" y="99" text-anchor="middle" style="fill:var(--text-2)" font-size="10">sensores</text>
+            <text x="165" y="150" text-anchor="middle" style="fill:var(--text-2)" font-size="10">comando</text>
+            <text x="355" y="99" text-anchor="middle" style="fill:var(--text-2)" font-size="10">sensores</text>
+            <text x="355" y="150" text-anchor="middle" style="fill:var(--text-2)" font-size="10">comando</text>
+            <text x="260" y="198" text-anchor="middle" style="fill:var(--text-2)" font-size="11">o ESP32 também publica o estado do LED,</text>
+            <text x="260" y="215" text-anchor="middle" style="fill:var(--text-2)" font-size="11">inclusive quando ele muda pelo botão físico</text>
+          </g>
+        </svg>
+        <table class="cmp sm">
+          <thead><tr><th>Direção</th><th>Tópico (sugestão)</th><th>Conteúdo</th></tr></thead>
+          <tbody>
+            <tr><td>ESP32 → painel</td><td class="n"><code>turma/&lt;seu-nome&gt;/sensores</code></td><td class="n">os dois sensores, em JSON</td></tr>
+            <tr><td>ESP32 → painel</td><td class="n"><code>turma/&lt;seu-nome&gt;/led/estado</code></td><td class="n">estado real do LED</td></tr>
+            <tr><td>painel → ESP32</td><td class="n"><code>turma/&lt;seu-nome&gt;/led/comando</code></td><td class="n">pedido para ligar ou desligar</td></tr>
+          </tbody>
+        </table>
+      </figure>
+      <div class="stack" style="gap:12px">
+        <div class="card tight mint"><h3>ESP32</h3><ul>
+          <li>Wi‑Fi e broker pela porta <b>8883 (TLS)</b>, com usuário e senha</li>
+          <li>Publica os dois sensores periodicamente (ex.: a cada 2 s), com <code>millis()</code></li>
+          <li>Assina o comando e liga ou desliga o LED</li>
+          <li>Botão físico também alterna o LED e publica o novo estado</li>
+          <li>Reconecta sozinho se o Wi‑Fi ou o broker caírem</li></ul></div>
+        <div class="card tight blue"><h3>Dashboard (HTML + JS, sem servidor)</h3><ul>
+          <li>Conecta por <b>WebSocket seguro</b> (<code>wss</code>, porta 8084)</li>
+          <li>Mostra os sensores em tempo real e o estado real do LED</li>
+          <li>Botão para ligar e desligar; indica se está conectada</li></ul></div>
+        <div class="card tight yellow"><h3>Extras (opcional)</h3><ul>
+          <li>Gráfico do histórico · alerta de limite</li>
+          <li>Dispositivo online/offline com <b>último desejo</b> (LWT) num tópico de status</li></ul></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ATIVIDADE PRÁTICA: ENTREGA ============ -->
+<section class="slide" data-title="Atividade prática: entrega" data-section="Atividade prática">
+  <div class="wrap">
+    <p class="kicker">Atividade prática · 2 de 2</p>
+    <h2>Entrega</h2>
+    <p class="lead">Para testar, o professor conecta no <b>seu</b> broker e publica no seu tópico de comando a mensagem de ligar e depois a de desligar. O LED da sua placa precisa acender e apagar. Preencha exatamente o que o seu ESP32 espera.</p>
+    <form id="praticaForm" class="pratica stack" novalidate>
+      <fieldset class="pr-set">
+        <legend>Broker</legend>
+        <div class="pr-grid">
+          <label class="span2">Endereço (Address do deployment)<input class="input mono" name="pr_host" required placeholder="xxxxxxxx.ala.us-east-1.emqxsl.com" spellcheck="false" autocomplete="off"></label>
+          <label>Usuário para o professor<input class="input mono" name="pr_usuario" required placeholder="professor" spellcheck="false" autocomplete="off"></label>
+          <label>Senha desse usuário<input class="input mono" name="pr_senha" required spellcheck="false" autocomplete="off"></label>
+        </div>
+      </fieldset>
+      <fieldset class="pr-set">
+        <legend>Comando do LED</legend>
+        <div class="pr-grid">
+          <label class="span2">Tópico de comando<input class="input mono" name="pr_t_comando" required placeholder="turma/ana/led/comando" spellcheck="false" autocomplete="off"></label>
+          <label>Mensagem para ligar<input class="input mono" name="pr_cmd_ligar" required placeholder="ON" spellcheck="false" autocomplete="off"></label>
+          <label>Mensagem para desligar<input class="input mono" name="pr_cmd_desligar" required placeholder="OFF" spellcheck="false" autocomplete="off"></label>
+        </div>
+      </fieldset>
+      <div class="note warn">Em <b>Access Control → Authentication</b>, crie um usuário só para o professor (não entregue a senha do ESP32) e deixe o deployment e a placa ligados no dia do teste.</div>
+      <div class="pr-erros" id="praticaErros" hidden></div>
+      <div class="btn-row"><button class="btn">Enviar entrega</button><span class="hint" id="praticaStatus" aria-live="polite"></span></div>
+    </form>
+  </div>
+</section>
+
+<!-- ============ GLOSSÁRIO ============ -->
+<section class="slide" data-title="Glossário: siglas e termos" data-section="Glossário">
+  <div class="wrap">
+    <p class="kicker">Glossário</p>
+    <h2>Siglas e termos da aula</h2>
+    <div class="sim" data-sim="glossario" style="gap:12px">
+      <div class="glos-tools">
+        <label class="sr-only" for="glBusca">Buscar no glossário</label>
+        <input id="glBusca" class="tin sm" type="text" placeholder="buscar: NAT, porta, retain…" data-in="q" spellcheck="false" autocomplete="off">
+        <div class="btn-row"><button type="button" class="btn ghost sm" data-gcat="" aria-pressed="true">Todos</button><button type="button" class="btn ghost sm" data-gcat="geral" aria-pressed="false">Geral</button><button type="button" class="btn ghost sm" data-gcat="rede" aria-pressed="false">Wi‑Fi e Internet</button><button type="button" class="btn ghost sm" data-gcat="transp" aria-pressed="false">Transporte</button><button type="button" class="btn ghost sm" data-gcat="app" aria-pressed="false">HTTP e MQTT</button><button type="button" class="btn ghost sm" data-gcat="direto" aria-pressed="false">ESP‑NOW e BLE</button></div>
+        <span class="pill info" data-o="n"></span>
+      </div>
+      <dl class="glos">
+      <div class="gl m" data-cat="transp" data-busca="ack acknowledgement “recebi.” resposta curta que confirma a chegada de uma mensagem. aparece no tcp, no mqtt (puback) e no esp‑now."><dt>ACK<em>acknowledgement</em></dt><dd><span class="tag">Transporte</span>“Recebi.” Resposta curta que confirma a chegada de uma mensagem. Aparece no TCP, no MQTT (PUBACK) e no ESP‑NOW.</dd></div>
+      <div class="gl y" data-cat="direto" data-busca="anúncio (advertising)  pacote curto que o periférico ble transmite várias vezes por segundo dizendo “estou aqui”, com nome e serviços. qualquer celular por perto ouve."><dt>Anúncio (advertising)</dt><dd><span class="tag">ESP‑NOW e BLE</span>Pacote curto que o periférico BLE transmite várias vezes por segundo dizendo “estou aqui”, com nome e serviços. Qualquer celular por perto ouve.</dd></div>
+      <div class="gl g" data-cat="geral" data-busca="bit e byte  bit é a menor informação: 0 ou 1. byte é um grupo de 8 bits; guarda um número de 0 a 255 ou uma letra."><dt>Bit e byte</dt><dd><span class="tag">Geral</span><b>Bit</b> é a menor informação: 0 ou 1. <b>Byte</b> é um grupo de 8 bits; guarda um número de 0 a 255 ou uma letra.</dd></div>
+      <div class="gl y" data-cat="direto" data-busca="bluetooth e ble bluetooth low energy rádio de curto alcance (~10 m). o ble é a versão de baixo consumo, feita para trocar valores pequenos com o celular gastando pouca bateria."><dt>Bluetooth e BLE<em>Bluetooth Low Energy</em></dt><dd><span class="tag">ESP‑NOW e BLE</span>Rádio de curto alcance (~10 m). O <b>BLE</b> é a versão de baixo consumo, feita para trocar valores pequenos com o celular gastando pouca bateria.</dd></div>
+      <div class="gl o" data-cat="app" data-busca="broker  o servidor central do mqtt. recebe cada mensagem publicada e entrega uma cópia a todos que assinaram aquele tópico. ex.: broker.hivemq.com."><dt>Broker</dt><dd><span class="tag">HTTP e MQTT</span>O servidor central do MQTT. Recebe cada mensagem publicada e entrega uma cópia a todos que assinaram aquele tópico. Ex.: <code>broker.hivemq.com</code>.</dd></div>
+      <div class="gl g" data-cat="geral" data-busca="cabeçalho  a parte do início do pacote com as informações de entrega (endereços, portas, tipo, tamanho), como o que se escreve do lado de fora de um envelope."><dt>Cabeçalho</dt><dd><span class="tag">Geral</span>A parte do início do pacote com as informações de entrega (endereços, portas, tipo, tamanho), como o que se escreve do lado de fora de um envelope.</dd></div>
+      <div class="gl y" data-cat="direto" data-busca="central e periférico  papéis no ble. periférico tem os dados e se anuncia (o esp32). central procura, conecta e lê (o celular)."><dt>Central e periférico</dt><dd><span class="tag">ESP‑NOW e BLE</span>Papéis no BLE. <b>Periférico</b> tem os dados e se anuncia (o ESP32). <b>Central</b> procura, conecta e lê (o celular).</dd></div>
+      <div class="gl g" data-cat="geral" data-busca="cliente e servidor  cliente é quem começa a conversa e faz pedidos (navegador, esp32 enviando dados). servidor é quem fica esperando pedidos e responde (um site, o broker)."><dt>Cliente e servidor</dt><dd><span class="tag">Geral</span><b>Cliente</b> é quem começa a conversa e faz pedidos (navegador, ESP32 enviando dados). <b>Servidor</b> é quem fica esperando pedidos e responde (um site, o broker).</dd></div>
+      <div class="gl o" data-cat="app" data-busca="connect, publish, subscribe…  os tipos de pacote do mqtt: entrar no broker (connect/connack), assinar (subscribe/suback), mandar mensagem (publish/puback), sinal de vida (pingreq/pingresp)."><dt>CONNECT, PUBLISH, SUBSCRIBE…</dt><dd><span class="tag">HTTP e MQTT</span>Os tipos de pacote do MQTT: entrar no broker (CONNECT/CONNACK), assinar (SUBSCRIBE/SUBACK), mandar mensagem (PUBLISH/PUBACK), sinal de vida (PINGREQ/PINGRESP).</dd></div>
+      <div class="gl o" data-cat="app" data-busca="curingas + e #  só para assinar. + vale exatamente um nível (casa/+/temp); # vale todo o resto, no fim (casa/#)."><dt>Curingas + e #</dt><dd><span class="tag">HTTP e MQTT</span>Só para assinar. <code>+</code> vale exatamente um nível (<code>casa/+/temp</code>); <code>#</code> vale todo o resto, no fim (<code>casa/#</code>).</dd></div>
+      <div class="gl o" data-cat="app" data-busca="código de status  número na primeira linha da resposta http. 200 ok, 201 criado, 404 caminho não existe, 500 erro no servidor."><dt>Código de status</dt><dd><span class="tag">HTTP e MQTT</span>Número na primeira linha da resposta HTTP. <b>200</b> ok, <b>201</b> criado, <b>404</b> caminho não existe, <b>500</b> erro no servidor.</dd></div>
+      <div class="gl b" data-cat="rede" data-busca="dhcp dynamic host configuration protocol serviço do roteador que empresta um ip a cada aparelho que entra na rede. por isso o ip do esp32 pode mudar quando ele reconecta."><dt>DHCP<em>Dynamic Host Configuration Protocol</em></dt><dd><span class="tag">Wi‑Fi e Internet</span>Serviço do roteador que <b>empresta</b> um IP a cada aparelho que entra na rede. Por isso o IP do ESP32 pode mudar quando ele reconecta.</dd></div>
+      <div class="gl b" data-cat="rede" data-busca="dns domain name system a “agenda telefônica” da internet: traduz nomes como broker.hivemq.com no número ip do servidor."><dt>DNS<em>Domain Name System</em></dt><dd><span class="tag">Wi‑Fi e Internet</span>A “agenda telefônica” da Internet: traduz nomes como <code>broker.hivemq.com</code> no número IP do servidor.</dd></div>
+      <div class="gl g" data-cat="geral" data-busca="encapsulamento  cada camada coloca a mensagem de cima dentro do seu próprio envelope (cabeçalho). na chegada, cada camada abre o seu. por isso 2 bytes de conteúdo viram ~88 bytes no ar."><dt>Encapsulamento</dt><dd><span class="tag">Geral</span>Cada camada coloca a mensagem de cima dentro do seu próprio envelope (cabeçalho). Na chegada, cada camada abre o seu. Por isso 2 bytes de conteúdo viram ~88 bytes no ar.</dd></div>
+      <div class="gl y" data-cat="direto" data-busca="esp‑now  protocolo da espressif para um esp32 mandar pacotes direto ao mac de outro, sem roteador e sem internet. até 250 bytes por mensagem, alcance de ~100–200 m."><dt>ESP‑NOW</dt><dd><span class="tag">ESP‑NOW e BLE</span>Protocolo da Espressif para um ESP32 mandar pacotes <b>direto</b> ao MAC de outro, sem roteador e sem Internet. Até 250 bytes por mensagem, alcance de ~100–200 m.</dd></div>
+      <div class="gl b" data-cat="rede" data-busca="estação (sta) station modo em que o esp32 entra na rede de um roteador, como um celular faria. é o modo usado para chegar à internet."><dt>Estação (STA)<em>station</em></dt><dd><span class="tag">Wi‑Fi e Internet</span>Modo em que o ESP32 <b>entra</b> na rede de um roteador, como um celular faria. É o modo usado para chegar à Internet.</dd></div>
+      <div class="gl b" data-cat="rede" data-busca="fcs frame check sequence código de verificação no fim do quadro. quem recebe recalcula; se não bater, o quadro chegou com erro e é descartado."><dt>FCS<em>Frame Check Sequence</em></dt><dd><span class="tag">Wi‑Fi e Internet</span>Código de verificação no fim do quadro. Quem recebe recalcula; se não bater, o quadro chegou com erro e é descartado.</dd></div>
+      <div class="gl y" data-cat="direto" data-busca="float, uint8, uint16  tipos de número. uint8: inteiro sem sinal de 1 byte (0–255). uint16: 2 bytes (0–65535). float: número com vírgula em 4 bytes."><dt>float, uint8, uint16</dt><dd><span class="tag">ESP‑NOW e BLE</span>Tipos de número. <b>uint8</b>: inteiro sem sinal de 1 byte (0–255). <b>uint16</b>: 2 bytes (0–65535). <b>float</b>: número com vírgula em 4 bytes.</dd></div>
+      <div class="gl b" data-cat="rede" data-busca="gateway porta de saída o endereço do roteador dentro da rede local (ex.: 192.168.0.1). tudo que vai para fora da casa é entregue a ele."><dt>Gateway<em>porta de saída</em></dt><dd><span class="tag">Wi‑Fi e Internet</span>O endereço do roteador dentro da rede local (ex.: <code>192.168.0.1</code>). Tudo que vai para fora da casa é entregue a ele.</dd></div>
+      <div class="gl y" data-cat="direto" data-busca="gatt generic attribute profile o jeito como o ble organiza os dados depois de conectar: o aparelho tem serviços, e cada serviço tem características com um valor."><dt>GATT<em>Generic Attribute Profile</em></dt><dd><span class="tag">ESP‑NOW e BLE</span>O jeito como o BLE organiza os dados depois de conectar: o aparelho tem <b>serviços</b>, e cada serviço tem <b>características</b> com um valor.</dd></div>
+      <div class="gl o" data-cat="app" data-busca="get e post  métodos do http. get pede um dado (“me mostra a temperatura”). post envia um dado no corpo (“guarda esta leitura”)."><dt>GET e POST</dt><dd><span class="tag">HTTP e MQTT</span>Métodos do HTTP. <b>GET</b> pede um dado (“me mostra a temperatura”). <b>POST</b> envia um dado no corpo (“guarda esta leitura”).</dd></div>
+      <div class="gl y" data-cat="direto" data-busca="handle  número curto (2 bytes) que o ble usa dentro da conexão para dizer de qual característica é aquele valor."><dt>Handle</dt><dd><span class="tag">ESP‑NOW e BLE</span>Número curto (2 bytes) que o BLE usa dentro da conexão para dizer de qual característica é aquele valor.</dd></div>
+      <div class="gl g" data-cat="geral" data-busca="hexadecimal (0x…)  jeito curto de escrever bytes, com os dígitos 0–9 e a–f. cada byte vira dois dígitos: 0x41 = 65 = a letra a. o 0x só avisa que o número está em hexadecimal."><dt>Hexadecimal (0x…)</dt><dd><span class="tag">Geral</span>Jeito curto de escrever bytes, com os dígitos 0–9 e A–F. Cada byte vira dois dígitos: <code>0x41</code> = 65 = a letra A. O <code>0x</code> só avisa que o número está em hexadecimal.</dd></div>
+      <div class="gl o" data-cat="app" data-busca="http hypertext transfer protocol o protocolo da web. o cliente manda um pedido em texto (método, caminho, cabeçalhos, corpo) e o servidor devolve uma resposta com um código (200, 404…). só o cliente começa."><dt>HTTP<em>HyperText Transfer Protocol</em></dt><dd><span class="tag">HTTP e MQTT</span>O protocolo da web. O cliente manda um <b>pedido</b> em texto (método, caminho, cabeçalhos, corpo) e o servidor devolve uma <b>resposta</b> com um código (200, 404…). Só o cliente começa.</dd></div>
+      <div class="gl o" data-cat="app" data-busca="https e tls http secure · transport layer security tls é a camada de criptografia que embaralha a conexão para ninguém no caminho ler. https é http sobre tls (porta 443); mqtt sobre tls usa a porta 8883."><dt>HTTPS e TLS<em>HTTP Secure · Transport Layer Security</em></dt><dd><span class="tag">HTTP e MQTT</span><b>TLS</b> é a camada de criptografia que embaralha a conexão para ninguém no caminho ler. <b>HTTPS</b> é HTTP sobre TLS (porta 443); MQTT sobre TLS usa a porta 8883.</dd></div>
+      <div class="gl o" data-cat="app" data-busca="id de cliente client id nome único com que cada cliente se apresenta ao broker. dois clientes com o mesmo id se derrubam um ao outro."><dt>ID de cliente<em>client ID</em></dt><dd><span class="tag">HTTP e MQTT</span>Nome único com que cada cliente se apresenta ao broker. Dois clientes com o mesmo ID se derrubam um ao outro.</dd></div>
+      <div class="gl b" data-cat="rede" data-busca="ip internet protocol protocolo e endereço que identificam o aparelho entre redes, ex.: 192.168.0.23. os roteadores leem o ip de destino para decidir para onde mandar o pacote, como o cep de uma carta."><dt>IP<em>Internet Protocol</em></dt><dd><span class="tag">Wi‑Fi e Internet</span>Protocolo e endereço que identificam o aparelho <b>entre redes</b>, ex.: <code>192.168.0.23</code>. Os roteadores leem o IP de destino para decidir para onde mandar o pacote, como o CEP de uma carta.</dd></div>
+      <div class="gl b" data-cat="rede" data-busca="ip privado e ip público  privado (192.168.x.x, 10.x.x.x) só vale dentro de uma rede; milhões de casas usam os mesmos. público é único na internet inteira; em casa, normalmente só o roteador tem um."><dt>IP privado e IP público</dt><dd><span class="tag">Wi‑Fi e Internet</span><b>Privado</b> (192.168.x.x, 10.x.x.x) só vale dentro de uma rede; milhões de casas usam os mesmos. <b>Público</b> é único na Internet inteira; em casa, normalmente só o roteador tem um.</dd></div>
+      <div class="gl b" data-cat="rede" data-busca="ipv4 ip versão 4 o formato de endereço ip mais comum: 4 números de 0 a 255 separados por ponto. existe também o ipv6, bem mais longo."><dt>IPv4<em>IP versão 4</em></dt><dd><span class="tag">Wi‑Fi e Internet</span>O formato de endereço IP mais comum: 4 números de 0 a 255 separados por ponto. Existe também o IPv6, bem mais longo.</dd></div>
+      <div class="gl g" data-cat="geral" data-busca="json javascript object notation formato de texto para mandar vários valores com nome: {&quot;temp&quot;:24.5,&quot;umid&quot;:61}. muito usado no corpo do http e no payload do mqtt."><dt>JSON<em>JavaScript Object Notation</em></dt><dd><span class="tag">Geral</span>Formato de texto para mandar vários valores com nome: <code>{"temp":24.5,"umid":61}</code>. Muito usado no corpo do HTTP e no payload do MQTT.</dd></div>
+      <div class="gl o" data-cat="app" data-busca="keepalive  intervalo máximo sem notícias. se o cliente fica calado, manda um pingreq (“ainda estou aqui”). passado 1,5 × esse tempo sem nada, o broker considera que ele caiu."><dt>Keepalive</dt><dd><span class="tag">HTTP e MQTT</span>Intervalo máximo sem notícias. Se o cliente fica calado, manda um PINGREQ (“ainda estou aqui”). Passado 1,5 × esse tempo sem nada, o broker considera que ele caiu.</dd></div>
+      <div class="gl g" data-cat="geral" data-busca="little‑endian  ordem de bytes em que o byte menos significativo vem primeiro. o número 0x0992 sai como 92 09. o esp32 e o ble usam essa ordem."><dt>Little‑endian</dt><dd><span class="tag">Geral</span>Ordem de bytes em que o byte <b>menos</b> significativo vem primeiro. O número <code>0x0992</code> sai como <code>92 09</code>. O ESP32 e o BLE usam essa ordem.</dd></div>
+      <div class="gl b" data-cat="rede" data-busca="lora long range rádio de longo alcance (quilômetros) e pouca velocidade, para sensores no campo. precisa de um módulo externo no esp32."><dt>LoRa<em>Long Range</em></dt><dd><span class="tag">Wi‑Fi e Internet</span>Rádio de longo alcance (quilômetros) e pouca velocidade, para sensores no campo. Precisa de um módulo externo no ESP32.</dd></div>
+      <div class="gl o" data-cat="app" data-busca="lwt last will and testament “último desejo”. mensagem que o cliente deixa com o broker ao conectar; se ele cair sem se despedir, o broker publica por ele (ex.: offline)."><dt>LWT<em>Last Will and Testament</em></dt><dd><span class="tag">HTTP e MQTT</span>“Último desejo”. Mensagem que o cliente deixa com o broker ao conectar; se ele cair sem se despedir, o broker publica por ele (ex.: <code>offline</code>).</dd></div>
+      <div class="gl b" data-cat="rede" data-busca="mac media access control endereço de fábrica da placa de rede, 6 bytes, ex.: 24:6f:28:a1:3c:90. identifica o aparelho dentro da rede local, como o número da casa na rua. não serve para achar alguém em outra rede."><dt>MAC<em>Media Access Control</em></dt><dd><span class="tag">Wi‑Fi e Internet</span>Endereço de <b>fábrica</b> da placa de rede, 6 bytes, ex.: <code>24:6F:28:A1:3C:90</code>. Identifica o aparelho <b>dentro da rede local</b>, como o número da casa na rua. Não serve para achar alguém em outra rede.</dd></div>
+      <div class="gl o" data-cat="app" data-busca="mqtt message queuing telemetry transport protocolo leve de mensagens para iot, sobre tcp. ninguém fala direto com ninguém: todos se conectam a um broker, publicam e assinam tópicos."><dt>MQTT<em>Message Queuing Telemetry Transport</em></dt><dd><span class="tag">HTTP e MQTT</span>Protocolo leve de mensagens para IoT, sobre TCP. Ninguém fala direto com ninguém: todos se conectam a um <b>broker</b>, publicam e assinam <b>tópicos</b>.</dd></div>
+      <div class="gl b" data-cat="rede" data-busca="nat network address translation “tradução de endereço”. quando um aparelho da casa acessa a internet, o roteador troca o ip privado dele pelo ip público da casa e anota a troca para devolver a resposta. efeito colateral: ninguém de fora consegue iniciar uma conexão com um aparelho dentro da casa."><dt>NAT<em>Network Address Translation</em></dt><dd><span class="tag">Wi‑Fi e Internet</span>“Tradução de endereço”. Quando um aparelho da casa acessa a Internet, o roteador troca o IP privado dele pelo IP público da casa e anota a troca para devolver a resposta. Efeito colateral: <b>ninguém de fora consegue iniciar</b> uma conexão com um aparelho dentro da casa.</dd></div>
+      <div class="gl y" data-cat="direto" data-busca="notificar notify no ble, o celular se inscreve uma vez e o esp32 avisa sozinho sempre que o valor muda, sem o celular precisar perguntar."><dt>Notificar<em>notify</em></dt><dd><span class="tag">ESP‑NOW e BLE</span>No BLE, o celular se inscreve uma vez e o ESP32 avisa sozinho sempre que o valor muda, sem o celular precisar perguntar.</dd></div>
+      <div class="gl g" data-cat="geral" data-busca="pacote / quadro  um “envelope” de bytes que viaja pela rede: cabeçalho com endereços e controle, depois os dados. na camada de rede costuma se chamar quadro; na camada internet, pacote."><dt>Pacote / quadro</dt><dd><span class="tag">Geral</span>Um “envelope” de bytes que viaja pela rede: cabeçalho com endereços e controle, depois os dados. Na camada de rede costuma se chamar <b>quadro</b>; na camada Internet, <b>pacote</b>.</dd></div>
+      <div class="gl g" data-cat="geral" data-busca="payload carga útil o conteúdo de verdade da mensagem, sem os cabeçalhos: on, 24.5, um json. é o que interessa a quem recebe."><dt>Payload<em>carga útil</em></dt><dd><span class="tag">Geral</span>O conteúdo de verdade da mensagem, sem os cabeçalhos: <code>ON</code>, <code>24.5</code>, um JSON. É o que interessa a quem recebe.</dd></div>
+      <div class="gl o" data-cat="app" data-busca="polling  perguntar de novo e de novo, em intervalos, se há algo novo. é o que o http obriga a fazer para receber ordens; gasta rede e tem atraso."><dt>Polling</dt><dd><span class="tag">HTTP e MQTT</span>Perguntar de novo e de novo, em intervalos, se há algo novo. É o que o HTTP obriga a fazer para receber ordens; gasta rede e tem atraso.</dd></div>
+      <div class="gl b" data-cat="rede" data-busca="ponto de acesso (ap) access point modo em que o esp32 cria a própria rede wi‑fi e outros aparelhos se conectam nele. funciona sem internet, mas só para quem está perto."><dt>Ponto de acesso (AP)<em>access point</em></dt><dd><span class="tag">Wi‑Fi e Internet</span>Modo em que o ESP32 <b>cria</b> a própria rede Wi‑Fi e outros aparelhos se conectam nele. Funciona sem Internet, mas só para quem está perto.</dd></div>
+      <div class="gl m" data-cat="transp" data-busca="porta  número que diz qual programa dentro do aparelho deve receber o pacote. ip + porta = endereço completo. ex.: 80 (http), 443 (https), 1883 (mqtt)."><dt>Porta</dt><dd><span class="tag">Transporte</span>Número que diz <b>qual programa</b> dentro do aparelho deve receber o pacote. IP + porta = endereço completo. Ex.: 80 (HTTP), 443 (HTTPS), 1883 (MQTT).</dd></div>
+      <div class="gl g" data-cat="geral" data-busca="protocolo  o “combinado” entre dois aparelhos: em que ordem vêm as partes da mensagem, quem fala quando e o que cada resposta significa. sem protocolo, os bits chegam mas ninguém entende."><dt>Protocolo</dt><dd><span class="tag">Geral</span>O “combinado” entre dois aparelhos: em que ordem vêm as partes da mensagem, quem fala quando e o que cada resposta significa. Sem protocolo, os bits chegam mas ninguém entende.</dd></div>
+      <div class="gl o" data-cat="app" data-busca="publicar e assinar publish / subscribe publicar é enviar uma mensagem para um tópico. assinar é pedir ao broker para receber tudo que chegar num tópico. quem publica não precisa saber quem assina."><dt>Publicar e assinar<em>publish / subscribe</em></dt><dd><span class="tag">HTTP e MQTT</span><b>Publicar</b> é enviar uma mensagem para um tópico. <b>Assinar</b> é pedir ao broker para receber tudo que chegar num tópico. Quem publica não precisa saber quem assina.</dd></div>
+      <div class="gl o" data-cat="app" data-busca="qos quality of service nível de garantia de entrega no mqtt. 0: no máximo uma vez (pode perder). 1: pelo menos uma vez (pode duplicar). 2: exatamente uma vez (mais pacotes)."><dt>QoS<em>Quality of Service</em></dt><dd><span class="tag">HTTP e MQTT</span>Nível de garantia de entrega no MQTT. <b>0</b>: no máximo uma vez (pode perder). <b>1</b>: pelo menos uma vez (pode duplicar). <b>2</b>: exatamente uma vez (mais pacotes).</dd></div>
+      <div class="gl o" data-cat="app" data-busca="retain reter opção do mqtt em que o broker guarda a última mensagem do tópico e entrega na hora a quem assinar depois. bom para estados, como “led ligado”."><dt>Retain<em>reter</em></dt><dd><span class="tag">HTTP e MQTT</span>Opção do MQTT em que o broker <b>guarda a última mensagem</b> do tópico e entrega na hora a quem assinar depois. Bom para estados, como “LED ligado”.</dd></div>
+      <div class="gl m" data-cat="transp" data-busca="retransmissão  reenviar um pacote que não teve confirmação (ack) dentro do prazo. é o que torna o tcp confiável, ao custo de mais tempo e mais pacotes."><dt>Retransmissão</dt><dd><span class="tag">Transporte</span>Reenviar um pacote que não teve confirmação (ACK) dentro do prazo. É o que torna o TCP confiável, ao custo de mais tempo e mais pacotes.</dd></div>
+      <div class="gl b" data-cat="rede" data-busca="roteador  aparelho que liga redes diferentes e escolhe o caminho dos pacotes. em casa, é a caixinha do wi‑fi que liga a rede da casa à internet."><dt>Roteador</dt><dd><span class="tag">Wi‑Fi e Internet</span>Aparelho que liga redes diferentes e escolhe o caminho dos pacotes. Em casa, é a caixinha do Wi‑Fi que liga a rede da casa à Internet.</dd></div>
+      <div class="gl y" data-cat="direto" data-busca="serviço e característica  no ble, o serviço é um grupo (ex.: sensor ambiental) e a característica é um valor dentro dele (ex.: temperatura), que pode ser lido ou notificado."><dt>Serviço e característica</dt><dd><span class="tag">ESP‑NOW e BLE</span>No BLE, o <b>serviço</b> é um grupo (ex.: sensor ambiental) e a <b>característica</b> é um valor dentro dele (ex.: temperatura), que pode ser lido ou notificado.</dd></div>
+      <div class="gl b" data-cat="rede" data-busca="ssid service set identifier o nome da rede wi‑fi, aquele que aparece na lista do celular (ex.: labiot)."><dt>SSID<em>Service Set Identifier</em></dt><dd><span class="tag">Wi‑Fi e Internet</span>O <b>nome</b> da rede Wi‑Fi, aquele que aparece na lista do celular (ex.: <code>LabIoT</code>).</dd></div>
+      <div class="gl y" data-cat="direto" data-busca="struct  um “molde” com campos de tamanho fixo (ex.: float temperatura, uint16 umidade). é o jeito comum de organizar os bytes de uma mensagem esp‑now; quem recebe precisa do mesmo molde."><dt>Struct</dt><dd><span class="tag">ESP‑NOW e BLE</span>Um “molde” com campos de tamanho fixo (ex.: float temperatura, uint16 umidade). É o jeito comum de organizar os bytes de uma mensagem ESP‑NOW; quem recebe precisa do mesmo molde.</dd></div>
+      <div class="gl m" data-cat="transp" data-busca="syn, ack, fin  sinais (flags) do cabeçalho tcp. syn pede para abrir a conexão, ack confirma o que chegou, fin encerra. a abertura é syn → syn‑ack → ack."><dt>SYN, ACK, FIN</dt><dd><span class="tag">Transporte</span>Sinais (flags) do cabeçalho TCP. <b>SYN</b> pede para abrir a conexão, <b>ACK</b> confirma o que chegou, <b>FIN</b> encerra. A abertura é SYN → SYN‑ACK → ACK.</dd></div>
+      <div class="gl m" data-cat="transp" data-busca="tcp transmission control protocol transporte confiável: abre uma conexão antes, numera os pedaços, confirma cada um e reenvia o que se perdeu. tudo chega, na ordem. usado por http e mqtt. analogia: carta registrada com aviso de recebimento."><dt>TCP<em>Transmission Control Protocol</em></dt><dd><span class="tag">Transporte</span>Transporte <b>confiável</b>: abre uma conexão antes, numera os pedaços, confirma cada um e reenvia o que se perdeu. Tudo chega, na ordem. Usado por HTTP e MQTT. Analogia: carta registrada com aviso de recebimento.</dd></div>
+      <div class="gl b" data-cat="rede" data-busca="tcp/ip (modelo)  o conjunto de protocolos da internet, organizado em 4 camadas: rede (wi‑fi), internet (ip), transporte (tcp/udp) e aplicação (http, mqtt)."><dt>TCP/IP (modelo)</dt><dd><span class="tag">Wi‑Fi e Internet</span>O conjunto de protocolos da Internet, organizado em 4 camadas: rede (Wi‑Fi), Internet (IP), transporte (TCP/UDP) e aplicação (HTTP, MQTT).</dd></div>
+      <div class="gl o" data-cat="app" data-busca="tópico  o “assunto” ou endereço de uma mensagem mqtt, com níveis separados por barra: casa/sala/led. maiúsculas importam."><dt>Tópico</dt><dd><span class="tag">HTTP e MQTT</span>O “assunto” ou endereço de uma mensagem MQTT, com níveis separados por barra: <code>casa/sala/led</code>. Maiúsculas importam.</dd></div>
+      <div class="gl m" data-cat="transp" data-busca="udp user datagram protocol transporte simples e rápido: manda e esquece, sem conexão e sem confirmação. o que se perde, se perde. usado em vídeo ao vivo, jogos e dns. analogia: cartão‑postal."><dt>UDP<em>User Datagram Protocol</em></dt><dd><span class="tag">Transporte</span>Transporte <b>simples e rápido</b>: manda e esquece, sem conexão e sem confirmação. O que se perde, se perde. Usado em vídeo ao vivo, jogos e DNS. Analogia: cartão‑postal.</dd></div>
+      <div class="gl y" data-cat="direto" data-busca="uuid universally unique identifier número que identifica um serviço ou característica ble. os padronizados são curtos: 0x181a (sensor ambiental), 0x2a6e (temperatura)."><dt>UUID<em>Universally Unique Identifier</em></dt><dd><span class="tag">ESP‑NOW e BLE</span>Número que identifica um serviço ou característica BLE. Os padronizados são curtos: <code>0x181A</code> (sensor ambiental), <code>0x2A6E</code> (temperatura).</dd></div>
+      <div class="gl b" data-cat="rede" data-busca="wi‑fi padrão ieee 802.11 rede local sem fio por rádio. leva os dados do esp32 até o roteador. o esp32 usa a faixa de 2,4 ghz (não enxerga redes de 5 ghz)."><dt>Wi‑Fi<em>padrão IEEE 802.11</em></dt><dd><span class="tag">Wi‑Fi e Internet</span>Rede local sem fio por rádio. Leva os dados do ESP32 até o roteador. O ESP32 usa a faixa de <b>2,4 GHz</b> (não enxerga redes de 5 GHz).</dd></div>
+      </dl>
+      <p class="hint" data-o="vazio" hidden>Nenhum termo encontrado.</p>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<dialog id="identDlg" class="ident" aria-labelledby="identTitle">
+  <form id="identForm" novalidate>
+    <h3 id="identTitle">Quem está respondendo?</h3>
+    <p class="hint">Suas respostas da aula ficam registradas com estes dados. Só o professor vê.</p>
+    <label>Nome completo<input class="input" name="nome" required autocomplete="name"></label>
+    <label>E-mail<input class="input" name="email" type="email" required autocomplete="email"></label>
+    <div class="grid-2 even" style="gap:10px">
+      <label>Turma<input class="input" name="turma" placeholder="ex.: T29"></label>
+      <label>Grupo<input class="input" name="grupo" placeholder="ex.: G3"></label>
+    </div>
+    <div class="btn-row" style="justify-content:flex-end"><button type="button" class="btn ghost" id="identCancel">Depois</button><button class="btn">Salvar</button></div>
+  </form>
+</dialog>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="js/config.js"></script>
+<script src="js/kit.js"></script>
+<script src="js/sims-redes.js"></script>
+<script src="js/sims-mqtt.js"></script>
+<script src="js/sims-pacotes.js"></script>
+<script src="js/app.js"></script>
+<script src="js/participacao.js"></script>
+</body>
+</html>
