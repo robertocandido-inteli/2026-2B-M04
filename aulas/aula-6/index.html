@@ -1,0 +1,997 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dispositivos de saída e atuadores</title>
+<meta name="description" content="Aula 6 — Como o ESP32 age no mundo: LEDs, som e alarme, PWM (brilho, cor, servo), motores DC, ponte H e motor de passo, outros atuadores e displays (7 segmentos, LCD I²C e OLED), com simulações dos sinais e quizzes formativos.">
+<link rel="icon" href="assets/img/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<script src="js/theme.js"></script>
+</head>
+<body>
+
+<header class="topbar">
+  <img class="logo" src="assets/img/logo.png" alt="Inteli">
+  <div class="deck-title"><b>Aula 6</b> · Dispositivos de saída e atuadores</div>
+  <span class="spacer"></span>
+  <div class="aula-acesso" aria-label="Participação na aula">
+    <span class="net"><span class="net-dot" id="netDot"></span><span id="netLabel">…</span></span>
+    <form id="accForm" class="acc-form" autocomplete="off">
+      <label class="sr-only" for="accCode">Senha da aula</label>
+      <input id="accCode" placeholder="senha da aula" maxlength="32" spellcheck="false" autocapitalize="characters">
+      <button class="btn sm" id="accBtn">Entrar</button>
+    </form>
+    <button type="button" class="btn ghost sm" id="accWho" hidden title="Seus dados">● <span id="accName"></span></button>
+  </div>
+  <a class="btn ghost back-link" href="../../aulas/aula-5/index.html" title="Voltar para a Aula 5">← Aula 5</a>
+  <nav class="nav" aria-label="Navegação dos slides">
+    <button class="icon-btn" id="btnPrev" title="Anterior (←)" aria-label="Slide anterior"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button>
+    <span class="counter" id="counter">1 / 25</span>
+    <button class="icon-btn" id="btnNext" title="Próximo (→)" aria-label="Próximo slide"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+    <button class="icon-btn" id="btnGrid" title="Visão geral (G)" aria-label="Visão geral"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></svg></button>
+    <button class="icon-btn theme-btn" id="btnTheme" title="Tema claro/escuro (T)" aria-label="Alternar tema claro/escuro"><svg class="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><svg class="i-moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+    <button class="icon-btn" id="btnFull" title="Tela cheia (F)" aria-label="Tela cheia"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+  </nav>
+</header>
+<div class="progress" id="progress"></div>
+<div class="overview" id="overview" aria-hidden="true"><div class="grid" id="overviewGrid"></div></div>
+
+<main class="deck" id="deck">
+
+<!-- ============ 1. CAPA ============ -->
+<section class="slide cover" data-title="Dispositivos de saída e atuadores" data-section="Introdução">
+  <svg class="traces" data-sim="traces" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true"></svg>
+  <div class="wrap">
+    <p class="kicker">Aula 6 · Sistemas embarcados</p>
+    <h1>Como o ESP32 age no mundo:<br><span>dispositivos de saída e atuadores</span></h1>
+    <p class="lead">Até aqui o ESP32 <b>leu</b> sensores e <b>conversou</b> pela rede. Agora ele vai <b>fazer</b>: acender, apitar, girar, mostrar. Para cada dispositivo, vamos olhar a mesma coisa: <b>como funciona</b>, <b>que sinal</b> sai do pino e <b>o que precisa ficar no meio</b>.</p>
+    <div class="agenda" style="grid-template-columns:repeat(2,minmax(0,1fr));max-width:660px">
+      <div><b>Liga e desliga</b>LED, buzzer, alarme e drivers</div>
+      <div><b>PWM</b>brilho, cor e servomotor</div>
+      <div><b>Atuadores</b>motor DC, ponte H, passo, relé</div>
+      <div style="border-color:var(--yellow)"><b>Displays</b>7 segmentos, LCD I²C e OLED</div>
+    </div>
+    <p class="author">Professor Doutor Roberto Cândido</p>
+    <p class="start-hint"><span class="kbd">→</span> ou <span class="kbd">espaço</span> para avançar · <span class="kbd">G</span> visão geral · <span class="kbd">F</span> tela cheia</p>
+  </div>
+</section>
+
+<!-- ============ 2. SAÍDAS E ATUADORES ============ -->
+<section class="slide" data-title="Saídas: o ESP32 agindo no mundo" data-section="Introdução">
+  <div class="wrap">
+    <p class="kicker">Introdução</p>
+    <h2>Saídas: o ESP32 agindo no mundo</h2>
+    <p class="def" style="font-size:17px">Um <b>atuador</b> transforma um sinal elétrico em uma ação física: luz, som, movimento, calor. O ESP32 decide; o atuador faz.</p>
+    <div class="chain" style="grid-template-columns:repeat(5,minmax(0,1fr))">
+      <div><b>Sensor</b><p>mede (aula 4)</p></div>
+      <div><b>ESP32</b><p>decide o que fazer</p></div>
+      <div><b>Pino (GPIO)</b><p>3,3 V e poucos mA: só um <b>sinal</b></p></div>
+      <div><b>Driver</b><p>transistor, relé, ponte H: faz a <b>força</b></p></div>
+      <div><b>Atuador</b><p>luz, som, movimento</p></div>
+    </div>
+    <div class="cards three">
+      <div class="card tight mint"><h3>Saída digital</h3><p><b>Liga ou desliga</b>: só dois níveis, 0 V ou 3,3 V.</p><span class="ex">LED de aviso · buzzer ativo · relé</span></div>
+      <div class="card tight orange"><h3>Saída “analógica”</h3><p><b>Quanto</b>: brilho, velocidade, ângulo. O ESP32 faz isso com <b>PWM</b> (liga‑desliga muito rápido).</p><span class="ex">brilho de LED · motor · servo</span></div>
+      <div class="card tight blue"><h3>Saída de informação</h3><p><b>Mostrar</b> números e texto. O ESP32 manda <b>mensagens</b> para um display, em geral por I²C.</p><span class="ex">7 segmentos · LCD 16×2 · OLED</span></div>
+    </div>
+    <div class="note warn">O pino do ESP32 é um <b>sinal</b>, não uma fonte de energia: aguenta uns <b>20 mA</b> com folga (40 mA é o limite absoluto). Um LED cabe nisso; um motor, não. Para cargas maiores, sempre um <b>driver</b> no meio.</div>
+  </div>
+</section>
+
+<!-- ============ 3. LED ============ -->
+<section class="slide" data-title="LED: diodo que emite luz" data-section="Liga e desliga">
+  <div class="wrap">
+    <p class="kicker">Liga e desliga · LED</p>
+    <h2>LED: a saída mais simples</h2>
+    <div class="grid-2 wide-right">
+      <div class="stack" style="gap:12px">
+        <p class="def">O <b>LED</b> é um diodo que acende quando a corrente passa no sentido certo: do <b>ânodo</b> (perna longa, +) para o <b>cátodo</b> (perna curta, lado chato, −). Ele “come” uma tensão fixa, a <b>tensão direta</b> (V<sub>f</sub>), que depende da cor.</p>
+        <ol class="how">
+          <li>O pino dá <b>3,3 V</b>. O LED fica com a V<sub>f</sub> dele.</li>
+          <li>A <b>sobra</b> fica no resistor: 3,3 − V<sub>f</sub>.</li>
+          <li>O resistor <b>limita a corrente</b>: R = sobra ÷ corrente desejada.</li>
+        </ol>
+        <table class="cmp sm">
+          <thead><tr><th>Cor</th><th>V<sub>f</sub> típica</th><th>Para ~10 mA em 3,3 V</th></tr></thead>
+          <tbody>
+            <tr><td>vermelho</td><td class="n">~2,0 V</td><td class="n">(3,3 − 2,0) ÷ 0,010 = 130 Ω → <b>150 Ω</b></td></tr>
+            <tr><td>verde, amarelo</td><td class="n">~2,1–2,2 V</td><td class="n">~110–120 Ω → <b>120 Ω</b></td></tr>
+            <tr><td>azul, branco</td><td class="n">~3,0 V</td><td class="n">sobra só 0,3 V → <b>33 Ω</b>, e brilho fraco</td></tr>
+          </tbody>
+        </table>
+        <p class="hint">No código, é só <code>digitalWrite(pino, HIGH)</code> ou <code>LOW</code>. O valor comercial é o mais próximo <b>acima</b> do calculado.</p>
+      </div>
+      <div class="sim" data-sim="ledres">
+        <div class="sim-head"><span class="sim-title">GPIO → resistor → LED → GND</span>
+          <div class="seg" data-seg="cor"><button data-v="r" aria-pressed="true">vermelho</button><button data-v="y" aria-pressed="false">amarelo</button><button data-v="g" aria-pressed="false">verde</button><button data-v="b" aria-pressed="false">azul</button><button data-v="w" aria-pressed="false">branco</button></div></div>
+        <svg class="stage" viewBox="0 0 520 200" role="img" aria-label="Circuito com o pino do ESP32, resistor, LED e terra; a corrente aparece como pontos que se movem" style="max-height:220px"></svg>
+        <div class="ctl"><label for="lrR">Resistor em série</label><output data-o="rv"></output><input id="lrR" type="range" min="0" max="9" step="1" value="4" data-in="r"></div>
+        <div class="stats four">
+          <div class="stat blue"><span>no LED</span><b data-o="vf">–</b></div>
+          <div class="stat orange"><span>no resistor</span><b data-o="vr">–</b></div>
+          <div class="stat mint"><span>corrente</span><b data-o="i">–</b></div>
+          <div class="stat"><span>situação</span><b data-o="st">–</b></div>
+        </div>
+        <p class="step-caption" data-o="cap"></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 4. DRIVERS ============ -->
+<section class="slide" data-title="Quando o pino não aguenta: drivers" data-section="Liga e desliga">
+  <div class="wrap">
+    <p class="kicker">Liga e desliga · Drivers</p>
+    <h2>Quando o pino não aguenta: o driver faz a força</h2>
+    <div class="grid-2 even">
+      <figure class="stack" style="gap:10px;margin:0">
+        <svg viewBox="0 0 560 250" role="img" aria-label="O pino do ESP32 manda só o sinal para o driver; a fonte externa entrega a energia ao atuador através do driver; todos com o GND em comum" style="width:100%">
+          <defs><marker id="drA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 Z" style="fill:var(--wire)"/></marker></defs>
+          <g font-family="IBM Plex Mono, monospace" font-size="12">
+            <rect x="10" y="96" width="120" height="70" rx="10" style="fill:var(--plot);stroke:var(--mint)" stroke-width="2"/>
+            <text x="70" y="124" text-anchor="middle" style="fill:var(--mint)" font-weight="700">ESP32</text>
+            <text x="70" y="142" text-anchor="middle" style="fill:var(--muted)" font-size="11">GPIO · 3,3 V</text>
+            <text x="70" y="156" text-anchor="middle" style="fill:var(--muted)" font-size="11">poucos mA</text>
+            <rect x="215" y="96" width="130" height="70" rx="10" style="fill:var(--surface-2);stroke:var(--orange)" stroke-width="2.5"/>
+            <text x="280" y="124" text-anchor="middle" style="fill:var(--orange)" font-weight="700">driver</text>
+            <text x="280" y="142" text-anchor="middle" style="fill:var(--text-2)" font-size="10">transistor, MOSFET</text>
+            <text x="280" y="156" text-anchor="middle" style="fill:var(--text-2)" font-size="10">relé, ponte H</text>
+            <rect x="430" y="96" width="120" height="70" rx="10" style="fill:var(--plot);stroke:var(--blue)" stroke-width="2"/>
+            <text x="490" y="124" text-anchor="middle" style="fill:var(--blue)" font-weight="700">atuador</text>
+            <text x="490" y="142" text-anchor="middle" style="fill:var(--muted)" font-size="11">motor, lâmpada,</text>
+            <text x="490" y="156" text-anchor="middle" style="fill:var(--muted)" font-size="11">fita de LED…</text>
+            <rect x="215" y="10" width="130" height="46" rx="10" style="fill:var(--plot);stroke:var(--red)" stroke-width="2"/>
+            <text x="280" y="31" text-anchor="middle" style="fill:var(--red)" font-weight="700">fonte externa</text>
+            <text x="280" y="47" text-anchor="middle" style="fill:var(--muted)" font-size="11">5 V · 12 V · 2 A</text>
+            <path d="M132 131 H211" style="stroke:var(--mint)" stroke-width="2" marker-end="url(#drA)"/>
+            <text x="172" y="122" text-anchor="middle" style="fill:var(--mint)" font-size="11">sinal</text>
+            <path d="M347 131 H426" style="stroke:var(--red)" stroke-width="4" marker-end="url(#drA)"/>
+            <text x="380" y="116" text-anchor="middle" style="fill:var(--red)" font-size="11">força</text>
+            <path d="M280 58 V92" style="stroke:var(--red)" stroke-width="4" marker-end="url(#drA)"/>
+            <path d="M70 168 V210 H490 V168 M280 168 V210" fill="none" style="stroke:var(--wire)" stroke-width="2" stroke-dasharray="5 4"/>
+            <text x="280" y="232" text-anchor="middle" style="fill:var(--text-2)" font-size="11.5">GND em comum: todos usam a mesma referência de 0 V</text>
+          </g>
+        </svg>
+        <div class="note warn">Motor, relé, solenoide e bomba são <b>bobinas</b>: ao desligar, devolvem um pico de tensão. Um <b>diodo de proteção</b> (flyback) em paralelo com a bobina absorve esse pico. Os módulos prontos já trazem o diodo.</div>
+      </figure>
+      <div class="stack" style="gap:12px">
+        <table class="cmp sm">
+          <thead><tr><th>Carga</th><th>Como acionar</th></tr></thead>
+          <tbody>
+            <tr><td>LED de aviso</td><td class="n">direto no pino, com resistor</td></tr>
+            <tr><td>Buzzer alto, fita de LED 12 V, ventoinha</td><td class="n"><b>transistor</b> ou <b>MOSFET</b>: o pino abre e fecha a chave, a fonte externa dá a corrente</td></tr>
+            <tr><td>Lâmpada ou aparelho de tomada</td><td class="n"><b>módulo relé</b>: chave mecânica isolada, comandada por uma bobina</td></tr>
+            <tr><td>Motor DC nos dois sentidos</td><td class="n"><b>ponte H</b> (L298N, TB6612, DRV8833)</td></tr>
+            <tr><td>Servo</td><td class="n">sinal direto no pino; <b>alimentação de 5 V separada</b></td></tr>
+            <tr><td>Motor de passo</td><td class="n">driver de passo (ULN2003, A4988)</td></tr>
+          </tbody>
+        </table>
+        <div class="card tight orange"><h3>Relé: o interruptor comandado</h3><p>Uma bobina puxa um contato de metal: <b>COM</b> (comum) liga em <b>NA</b> (normalmente aberto) ou em <b>NF</b> (normalmente fechado). O lado de 127/220 V fica <b>isolado</b> do ESP32. Faz “clique” e tem vida útil limitada: não serve para PWM.</p></div>
+        <p class="hint">Rede elétrica de 127/220 V é perigosa. Na aula, use só módulos prontos e cargas de baixa tensão, com supervisão.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 5. SOM ============ -->
+<section class="slide" data-title="Som: buzzer ativo e passivo" data-section="Liga e desliga">
+  <div class="wrap">
+    <p class="kicker">Liga e desliga · Som</p>
+    <h2>Som: buzzer ativo × passivo</h2>
+    <div class="grid-2 wide-right">
+      <div class="stack" style="gap:12px">
+        <p class="def">Som é <b>vibração</b>. Um buzzer piezoelétrico tem uma pastilha que entorta um pouco cada vez que a tensão muda. Vibrando centenas de vezes por segundo, ela empurra o ar e faz som. A <b>frequência</b> da vibração é a <b>nota</b>.</p>
+        <div class="card tight mint"><h3>Ativo · “aperte e apita”</h3><p>Tem um <b>oscilador dentro</b>. Basta ligar o pino (HIGH) que ele apita, sempre na mesma nota. Saída <b>digital</b> pura.</p><span class="ex">bipe de aviso · alarme simples</span></div>
+        <div class="card tight orange"><h3>Passivo · “toque a nota”</h3><p>Não tem oscilador: o ESP32 precisa mandar uma <b>onda quadrada</b> na frequência da nota, com <code>tone(pino, freq)</code>. Toca melodias e sirenes.</p><span class="ex">melodia · sirene · notas diferentes</span></div>
+        <p class="hint">Como diferenciar: ligue em 3,3 V. Se apitar, é ativo; se só der um clique, é passivo. Os ativos costumam ter um adesivo e o fundo fechado.</p>
+      </div>
+      <div class="sim" data-sim="buzzer">
+        <div class="sim-head"><span class="sim-title">O sinal no pino do buzzer</span>
+          <div class="seg" data-seg="tipo"><button data-v="ativo" aria-pressed="true">Ativo</button><button data-v="passivo" aria-pressed="false">Passivo</button></div></div>
+        <div class="btn-row"><span class="hint">o ESP32 manda:</span><div class="seg" data-seg="sinal"><button data-v="high" aria-pressed="true">HIGH fixo</button><button data-v="onda" aria-pressed="false">onda (tone)</button></div></div>
+        <canvas height="150" aria-label="Gráfico do sinal no pino nos últimos 10 milissegundos"></canvas>
+        <div class="btn-row" data-o="notas"></div>
+        <div class="btn-row"><button class="btn sm" data-act="som" aria-pressed="false">🔈 Ouvir</button><span class="pill" data-o="f"></span></div>
+        <p class="step-caption" data-o="cap"></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 6. ALARME ============ -->
+<section class="slide" data-title="Alarme: LED, som e tempo" data-section="Liga e desliga">
+  <div class="wrap">
+    <p class="kicker">Liga e desliga · Alarme</p>
+    <h2>Alarme: juntando LED, som e tempo</h2>
+    <div class="grid-2 wide-right">
+      <div class="stack" style="gap:12px">
+        <p class="def">Um alarme é uma <b>máquina de estados</b>: em cada estado, as saídas fazem uma coisa. O que muda de um alarme para outro é o <b>padrão no tempo</b>: quanto tempo liga, quanto desliga, que nota.</p>
+        <div class="fields">
+          <div class="f m"><b>desarmado</b><small>tudo apagado</small></div>
+          <div class="f y"><b>armado</b><small>LED pisca devagar</small></div>
+          <div class="f r"><b>disparado</b><small>som + LED rápido</small></div>
+          <div class="f b"><b>silenciado</b><small>botão ou comando</small></div>
+        </div>
+        <ul class="bullets small">
+          <li>Com <code>delay()</code>, o ESP32 fica parado enquanto o buzzer apita e <b>não lê</b> o botão de silenciar nem o sensor.</li>
+          <li>Com <code>millis()</code>, ele confere o relógio a cada volta do <code>loop()</code>: “já passaram 200 ms? então troca”. O resto do programa continua rodando.</li>
+          <li>O mesmo vale para o LED: o pisca‑pisca é um padrão no tempo, não um <code>delay</code>.</li>
+        </ul>
+        <p class="hint">Na prática da aula 5, o comando chegava pelo MQTT: o alarme pode ser armado e silenciado de longe.</p>
+      </div>
+      <div class="sim" data-sim="alarme">
+        <div class="sim-head"><span class="sim-title">Padrões de alarme</span>
+          <div class="seg" data-seg="p"><button data-v="bip" aria-pressed="true">Bip intermitente</button><button data-v="sirene" aria-pressed="false">Sirene</button><button data-v="tres" aria-pressed="false">3 bipes</button></div></div>
+        <div class="rowc"><div class="sleds"><span class="sled r" data-o="led"></span><small>LED</small></div><span class="pill" data-o="st"></span></div>
+        <canvas height="160" aria-label="Linha do tempo dos últimos 4 segundos com a frequência do som"></canvas>
+        <div class="btn-row"><button class="btn orange sm" data-act="arm" aria-pressed="false">Disparar</button><button class="btn ghost sm" data-act="som" aria-pressed="false">🔈 Ouvir</button></div>
+        <p class="step-caption" data-o="cap"></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 7. QUIZ 1 ============ -->
+<section class="slide quiz" data-title="Quiz formativo 1: LED, drivers e som" data-section="Quiz formativo">
+  <div class="wrap">
+    <p class="kicker">Quiz formativo · 1 de 3</p>
+    <h2>LED, drivers e som</h2>
+    <div class="qz-list">
+      <div class="qz" data-q="f1_1">
+        <p class="qz-q"><span class="qn">1</span><span>Um LED vermelho (V<sub>f</sub> ≈ 2,0 V) vai num pino de 3,3 V e você quer ~10 mA. Qual resistor?</span></p>
+        <div class="qz-opts" role="group" aria-label="Alternativas da pergunta 1">
+          <button type="button" class="opt" data-v="a"><span class="letter">A</span><p>Nenhum: o pino já limita a corrente</p></button>
+          <button type="button" class="opt" data-v="b" data-ok><span class="letter">B</span><p>Cerca de 130 Ω (150 Ω comercial)</p></button>
+          <button type="button" class="opt" data-v="c"><span class="letter">C</span><p>Cerca de 13 Ω</p></button>
+          <button type="button" class="opt" data-v="d"><span class="letter">D</span><p>330 kΩ</p></button>
+        </div>
+        <p class="qz-exp"><span class="qz-verdict"></span> Sobram 3,3 − 2,0 = <b>1,3 V</b> para o resistor. R = 1,3 V ÷ 0,010 A = <b>130 Ω</b>; o valor comercial logo acima é 150 Ω. Com 13 Ω passariam 100 mA (queima); com 330 kΩ, o LED nem acende.</p>
+      </div>
+      <div class="qz" data-q="f1_2">
+        <p class="qz-q"><span class="qn">2</span><span>Você quer que o ESP32 ligue uma lâmpada de 127 V da sala. O que vai entre o pino e a lâmpada?</span></p>
+        <div class="qz-opts" role="group" aria-label="Alternativas da pergunta 2">
+          <button type="button" class="opt" data-v="a"><span class="letter">A</span><p>Nada: liga a lâmpada direto no GPIO</p></button>
+          <button type="button" class="opt" data-v="b"><span class="letter">B</span><p>Um resistor maior</p></button>
+          <button type="button" class="opt" data-v="c" data-ok><span class="letter">C</span><p>Um módulo relé</p></button>
+          <button type="button" class="opt" data-v="d"><span class="letter">D</span><p>Um sinal PWM de 1 kHz</p></button>
+        </div>
+        <p class="qz-exp"><span class="qz-verdict"></span> O pino dá 3,3 V e poucos mA. O <b>relé</b> é um interruptor comandado por uma bobina: o ESP32 aciona a bobina e o contato isolado liga a lâmpada. PWM não ajuda: o relé é mecânico e não aguenta chavear rápido.</p>
+      </div>
+      <div class="qz" data-q="f1_3">
+        <p class="qz-q"><span class="qn">3</span><span>Com <code>digitalWrite(pino, HIGH)</code> o buzzer só deu um clique. Com <code>tone(pino, 440)</code> ele tocou. Que buzzer é esse?</span></p>
+        <div class="qz-opts" role="group" aria-label="Alternativas da pergunta 3">
+          <button type="button" class="opt" data-v="a"><span class="letter">A</span><p>Ativo: tem oscilador interno</p></button>
+          <button type="button" class="opt" data-v="b" data-ok><span class="letter">B</span><p>Passivo: precisa receber a frequência</p></button>
+          <button type="button" class="opt" data-v="c"><span class="letter">C</span><p>Está queimado</p></button>
+          <button type="button" class="opt" data-v="d"><span class="letter">D</span><p>É um relé</p></button>
+        </div>
+        <p class="qz-exp"><span class="qz-verdict"></span> O buzzer <b>passivo</b> não tem oscilador: com nível fixo, a pastilha mexe uma vez (o clique) e para. Só vibra quando recebe uma onda, e a frequência da onda vira a nota (440 Hz = Lá).</p>
+      </div>
+    </div>
+    <p class="qz-status" aria-live="polite"></p>
+  </div>
+</section>
+
+<!-- ============ 8. DAC x PWM ============ -->
+<section class="slide" data-title="Saída analógica: DAC × PWM" data-section="PWM">
+  <div class="wrap">
+    <p class="kicker orange">PWM</p>
+    <h2>“Meio ligado”: DAC × PWM</h2>
+    <p class="lead sm">O pino digital só tem dois níveis. Para controlar <b>quanto</b> (brilho, velocidade), há dois caminhos.</p>
+    <div class="grid-2 even">
+      <figure class="stack" style="gap:8px;margin:0">
+        <svg viewBox="0 0 540 190" role="img" aria-label="À esquerda, o DAC produz uma linha fixa em 1,65 volt; à direita, o PWM alterna entre 0 e 3,3 volts com média de 1,65 volt" style="width:100%">
+          <g font-family="IBM Plex Mono, monospace" font-size="11">
+            <rect x="0" y="0" width="260" height="190" rx="12" style="fill:var(--plot)"/>
+            <rect x="280" y="0" width="260" height="190" rx="12" style="fill:var(--plot)"/>
+            <text x="130" y="22" text-anchor="middle" style="fill:var(--blue)" font-weight="700" font-size="12.5">DAC: tensão de verdade</text>
+            <text x="410" y="22" text-anchor="middle" style="fill:var(--orange)" font-weight="700" font-size="12.5">PWM: liga‑desliga rápido</text>
+            <g style="stroke:var(--surface-3)" stroke-width="1"><path d="M40 50 H245 M40 150 H245 M320 50 H525 M320 150 H525"/></g>
+            <text x="34" y="54" text-anchor="end" style="fill:var(--muted)">3,3</text><text x="34" y="154" text-anchor="end" style="fill:var(--muted)">0 V</text>
+            <text x="314" y="54" text-anchor="end" style="fill:var(--muted)">3,3</text><text x="314" y="154" text-anchor="end" style="fill:var(--muted)">0 V</text>
+            <path d="M40 100 H245" style="stroke:var(--blue)" stroke-width="3"/>
+            <text x="142" y="92" text-anchor="middle" style="fill:var(--blue)">1,65 V o tempo todo</text>
+            <path d="M320 50 H345 V150 H371 V50 H396 V150 H422 V50 H447 V150 H473 V50 H498 V150 H525" fill="none" style="stroke:var(--mint)" stroke-width="2.5"/>
+            <path d="M320 100 H525" style="stroke:var(--orange)" stroke-width="2" stroke-dasharray="6 5"/>
+            <text x="422" y="174" text-anchor="middle" style="fill:var(--orange)">média 1,65 V (50% do tempo ligado)</text>
+            <text x="142" y="174" text-anchor="middle" style="fill:var(--muted)">valor 128 de 255 (8 bits)</text>
+          </g>
+        </svg>
+        <p class="analogy">Analogia: a torneira meio aberta (DAC) × abrir e fechar a torneira toda muito rápido (PWM). No balde, o volume médio é o mesmo.</p>
+      </figure>
+      <div class="stack" style="gap:12px">
+        <div class="card tight blue"><h3>DAC · conversor digital‑analógico</h3><ul>
+          <li>Gera uma tensão contínua entre 0 e 3,3 V</li>
+          <li>ESP32 clássico: só 2 pinos (GPIO 25 e 26), 8 bits (256 níveis)</li>
+          <li>ESP32‑S3 e C3 <b>não têm</b> DAC</li>
+          <li>Uso: gerar áudio simples, tensão de referência</li></ul></div>
+        <div class="card tight orange"><h3>PWM · modulação por largura de pulso</h3><ul>
+          <li>Liga e desliga o pino milhares de vezes por segundo</li>
+          <li>Funciona em <b>quase qualquer pino</b> de saída (16 canais no ESP32)</li>
+          <li>Quem recebe “enxerga” a <b>média</b>: o olho, a inércia do motor</li>
+          <li>É o jeito comum de controlar brilho, velocidade e servos</li></ul></div>
+        <div class="note">O PWM entrega <b>energia</b> na proporção certa, mas não uma tensão contínua. Para LED e motor isso basta: eles reagem à média.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 9. PWM ANATOMIA ============ -->
+<section class="slide" data-title="PWM: período, duty e resolução" data-section="PWM">
+  <div class="wrap">
+    <p class="kicker orange">PWM</p>
+    <h2>PWM: período, duty e resolução</h2>
+    <div class="grid-2 wide-right">
+      <div class="stack" style="gap:12px">
+        <div class="stack" style="gap:6px">
+          <span class="fields-cap">As três escolhas de um sinal PWM</span>
+          <div class="fields">
+            <div class="f b"><b>frequência</b><small>quantas vezes por segundo · T = 1/f</small></div>
+            <div class="f o"><b>duty cycle</b><small>% do período ligado</small></div>
+            <div class="f m"><b>resolução</b><small>quantos degraus de duty</small></div>
+          </div>
+        </div>
+        <ul class="bullets small orange">
+          <li><b>Tensão média</b> = duty × 3,3 V. Com 25%, a média é 0,83 V.</li>
+          <li><b>Resolução</b>: com 8 bits, o duty vai de 0 a 255; com 10 bits, de 0 a 1023. Mais bits, ajuste mais fino.</li>
+          <li>Rápido o bastante, ninguém vê o pisca: o olho só percebe a <b>média</b> (acima de ~100 Hz).</li>
+        </ul>
+        <pre class="code sm" data-hl="2,3">// ESP32 (Arduino core 3.x): canal PWM do pino
+ledcAttach(pino, 1000, 8);   // 1 kHz, 8 bits
+ledcWrite(pino, 64);         // 64 de 255 = 25%</pre>
+        <p class="hint">O olho não é linear: 50% de duty parece bem mais que “metade do brilho”. Para dimerizar suave, use passos pequenos perto do zero.</p>
+      </div>
+      <div class="sim" data-sim="pwm">
+        <div class="sim-head"><span class="sim-title">Sinal PWM no pino</span>
+          <div class="seg" data-seg="f"><button data-v="1" aria-pressed="false">1 Hz</button><button data-v="10" aria-pressed="false">10 Hz</button><button data-v="1000" aria-pressed="true">1 kHz</button><button data-v="20000" aria-pressed="false">20 kHz</button></div></div>
+        <canvas height="170" aria-label="Gráfico do sinal PWM com quatro períodos e a linha da tensão média"></canvas>
+        <div class="ctl"><label for="pwD">Duty cycle (tempo ligado)</label><output data-o="dv"></output><input id="pwD" type="range" min="0" max="100" step="1" value="25" data-in="d"></div>
+        <div class="rowc">
+          <div class="pled" data-o="led" title="LED ligado ao pino"></div>
+          <div class="stats grow" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+            <div class="stat orange"><span>média</span><b data-o="vm">–</b></div>
+            <div class="stat blue"><span>ligado por</span><b data-o="ton">–</b></div>
+            <div class="stat mint"><span>ledcWrite</span><b data-o="cnt">–</b></div>
+          </div>
+        </div>
+        <div class="btn-row"><span class="hint">resolução:</span><div class="seg" data-seg="res"><button data-v="8" aria-pressed="true">8 bits</button><button data-v="10" aria-pressed="false">10 bits</button><button data-v="12" aria-pressed="false">12 bits</button></div></div>
+        <p class="step-caption" data-o="cap"></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 10. FREQUÊNCIA POR USO ============ -->
+<section class="slide" data-title="Cada uso, uma frequência" data-section="PWM">
+  <div class="wrap">
+    <p class="kicker orange">PWM</p>
+    <h2>Cada uso do PWM, uma frequência</h2>
+    <table class="cmp">
+      <thead><tr><th>Uso</th><th>Frequência típica</th><th>O que o duty (ou o pulso) controla</th><th>Por quê</th></tr></thead>
+      <tbody>
+        <tr><td>Brilho de LED</td><td class="n">1–5 kHz</td><td class="n">duty = brilho</td><td class="n">acima de ~100 Hz o olho não vê o pisca; em câmeras, quanto mais alto, menos listras</td></tr>
+        <tr><td>Velocidade de motor DC</td><td class="n">~20 kHz</td><td class="n">duty = velocidade</td><td class="n">abaixo disso o motor <b>zumbe</b>: a bobina vibra numa frequência audível</td></tr>
+        <tr><td>Servomotor</td><td class="n">50 Hz (a cada 20 ms)</td><td class="n"><b>largura do pulso</b> (1–2 ms) = ângulo</td><td class="n">é o padrão dos servos de aeromodelo; o servo lê o pulso, não a média</td></tr>
+        <tr><td>Buzzer passivo</td><td class="n">a própria nota (262–2000 Hz)</td><td class="n">duty fica em 50%</td><td class="n">aqui é a <b>frequência</b> que importa: ela é o som</td></tr>
+        <tr><td>Ventoinha de 4 fios</td><td class="n">25 kHz</td><td class="n">duty = rotação</td><td class="n">padrão dos coolers de computador</td></tr>
+      </tbody>
+    </table>
+    <div class="cards two">
+      <div class="card tight blue"><h3>Frequência × resolução</h3><p>O ESP32 monta o PWM contando pulsos de um relógio de 80 MHz. Quanto mais rápida a frequência, menos degraus de duty cabem: a <b>1 kHz</b> dá para usar até <b>16 bits</b>; a <b>20 kHz</b>, até <b>11 bits</b>.</p></div>
+      <div class="card tight mint"><h3>A mesma ideia, três leituras</h3><p>LED e motor reagem à <b>média</b>. O servo lê a <b>largura</b> de cada pulso. O buzzer reage à <b>frequência</b>. É o mesmo hardware de PWM, configurado de jeitos diferentes.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 11. LED RGB ============ -->
+<section class="slide" data-title="LED RGB: três PWMs misturam a cor" data-section="PWM">
+  <div class="wrap">
+    <p class="kicker orange">PWM · cor</p>
+    <h2>LED RGB: três PWMs misturam a cor</h2>
+    <div class="grid-2 wide-right">
+      <div class="stack" style="gap:12px">
+        <p class="def orange">Um LED RGB são <b>três LEDs</b> (vermelho, verde e azul) no mesmo encapsulamento, com 4 pernas: uma para cada cor e uma <b>comum</b>. Cada cor recebe o seu PWM e o seu resistor; o olho soma as três luzes.</p>
+        <ul class="bullets small">
+          <li><b>Cátodo comum</b>: a perna comum vai no GND. Mais duty, mais brilho.</li>
+          <li><b>Ânodo comum</b>: a perna comum vai no 3,3 V. A lógica inverte: o LED acende com o pino em 0 V.</li>
+          <li>Vermelho + verde = amarelo; verde + azul = ciano; os três = branco.</li>
+        </ul>
+        <div class="stack" style="gap:6px">
+          <span class="fields-cap">LED endereçável (WS2812, “NeoPixel”): a cor vira mensagem</span>
+          <div class="fields">
+            <div class="f m"><b>verde</b><small>8 bits</small></div>
+            <div class="f r"><b>vermelho</b><small>8 bits</small></div>
+            <div class="f b"><b>azul</b><small>8 bits</small></div>
+            <div class="f g" style="--w:1.4"><b>próximo LED…</b><small>passa adiante</small></div>
+          </div>
+          <p class="fields-note"><span>24 bits por LED, na ordem G R B</span><span>um único fio de dados para a fita toda</span></p>
+        </div>
+      </div>
+      <div class="sim" data-sim="rgb">
+        <div class="sim-head"><span class="sim-title">3 canais PWM · 8 bits</span><label class="chk"><input type="checkbox" data-in="anodo"> ânodo comum</label></div>
+        <div class="rowc">
+          <div class="swatch" data-o="sw" aria-label="Cor resultante"></div>
+          <div class="stack grow" style="gap:4px">
+            <div class="ctl"><label for="rgR" style="color:#ff6b6b">vermelho (R)</label><output data-o="rv"></output><input id="rgR" type="range" min="0" max="255" value="255" data-in="r"></div>
+            <div class="ctl"><label for="rgG" style="color:#46dd6a">verde (G)</label><output data-o="gv"></output><input id="rgG" type="range" min="0" max="255" value="160" data-in="g"></div>
+            <div class="ctl"><label for="rgB" style="color:#6f9fff">azul (B)</label><output data-o="bv"></output><input id="rgB" type="range" min="0" max="255" value="0" data-in="b"></div>
+          </div>
+        </div>
+        <div class="btn-row" data-o="presets"></div>
+        <span class="hint">o que vai para cada pino (ledcWrite) · cor <b data-o="hex"></b></span>
+        <div class="stack" style="gap:6px" data-o="duty"></div>
+        <p class="step-caption" data-o="cap"></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 12. SERVO ============ -->
+<section class="slide" data-title="Servomotor: o pulso vira ângulo" data-section="Atuadores">
+  <div class="wrap">
+    <p class="kicker blue">Atuadores · Servo</p>
+    <h2>Servomotor: a largura do pulso vira ângulo</h2>
+    <div class="grid-2 wide-right">
+      <div class="stack" style="gap:12px">
+        <p class="def blue">Dentro do servo há um <b>motor DC</b>, <b>engrenagens</b> que trocam velocidade por força, um <b>potenciômetro</b> preso ao eixo e uma placa de controle. A placa compara o ângulo pedido com o ângulo medido e gira o motor até os dois baterem: é uma <b>malha fechada</b>.</p>
+        <div class="stack" style="gap:6px">
+          <span class="fields-cap">O sinal: um pulso a cada 20 ms (50 Hz)</span>
+          <div class="fields">
+            <div class="f o"><b>1 ms</b><small>0°</small></div>
+            <div class="f y"><b>1,5 ms</b><small>90° (meio)</small></div>
+            <div class="f m"><b>2 ms</b><small>180°</small></div>
+            <div class="f g" style="--w:2"><b>resto do período</b><small>em 0 V, até completar 20 ms</small></div>
+          </div>
+          <p class="fields-note"><span>faixa didática; o SG90 aceita ~0,5–2,5 ms</span><span>confira a folha de dados</span></p>
+        </div>
+        <ul class="bullets small blue">
+          <li><b>Três fios</b>: marrom (GND), vermelho (5 V), laranja (sinal). O sinal pode vir direto do pino.</li>
+          <li>A <b>alimentação</b> vem de uma fonte de 5 V separada, com GND em comum: nos picos, o servo puxa centenas de mA e pode reiniciar o ESP32.</li>
+          <li><b>Rotação contínua</b>: alguns servos giram sem parar; aí o pulso controla a <b>velocidade</b>, não o ângulo.</li>
+        </ul>
+      </div>
+      <div class="sim" data-sim="servo">
+        <div class="sim-head"><span class="sim-title">Servo · 50 Hz</span><span class="pill" data-o="ang"></span></div>
+        <div class="grid-2 even" style="gap:10px;align-items:center">
+          <svg class="stage" viewBox="0 0 260 210" role="img" aria-label="Servo visto de frente com o braço apontando para o ângulo atual e uma linha tracejada no ângulo pedido" style="max-height:230px"></svg>
+          <div class="stats" style="grid-template-columns:1fr 1fr">
+            <div class="stat orange"><span>pulso</span><b data-o="pw">–</b></div>
+            <div class="stat blue"><span>duty</span><b data-o="dt">–</b></div>
+            <div class="stat mint" style="grid-column:1/-1"><span>ledcWrite · 16 bits</span><b data-o="cnt">–</b></div>
+          </div>
+        </div>
+        <canvas height="120" aria-label="Gráfico de 40 milissegundos do sinal do servo, com dois pulsos"></canvas>
+        <div class="ctl"><label for="svA">Ângulo pedido</label><output data-o="av"></output><input id="svA" type="range" min="0" max="180" step="1" value="90" data-in="a"></div>
+        <div class="btn-row"><button class="btn ghost sm" data-ang="0">0°</button><button class="btn ghost sm" data-ang="90">90°</button><button class="btn ghost sm" data-ang="180">180°</button><button class="btn ghost sm" data-act="sweep" aria-pressed="false">Varrer</button></div>
+        <p class="step-caption" data-o="cap"></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 13. MOTOR DC + PONTE H ============ -->
+<section class="slide" data-title="Motor DC e ponte H" data-section="Atuadores">
+  <div class="wrap">
+    <p class="kicker blue">Atuadores · Motor DC</p>
+    <h2>Motor DC: PWM dá a velocidade, a ponte H dá o sentido</h2>
+    <div class="grid-2 wide-right">
+      <div class="stack" style="gap:12px">
+        <p class="def blue">O motor DC gira enquanto recebe corrente. <b>Inverter os fios</b> inverte o sentido; <b>menos tensão média</b> deixa mais lento. Não dá para fazer as duas coisas só com o pino: precisa de uma <b>ponte H</b>, quatro chaves em volta do motor.</p>
+        <table class="cmp sm">
+          <thead><tr><th>IN1</th><th>IN2</th><th>EN (PWM)</th><th>Motor</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td class="n">0</td><td class="n">duty</td><td class="n">gira para a <b>frente</b></td></tr>
+            <tr><td>0</td><td class="n">1</td><td class="n">duty</td><td class="n">gira em <b>ré</b></td></tr>
+            <tr><td>1</td><td class="n">1</td><td class="n">100%</td><td class="n"><b>freio</b>: para rápido</td></tr>
+            <tr><td>–</td><td class="n">–</td><td class="n">0%</td><td class="n"><b>solto</b>: para pela inércia</td></tr>
+          </tbody>
+        </table>
+        <div class="apps"><span>L298N · antigo, perde ~2 V</span><span>TB6612FNG · eficiente</span><span>DRV8833 · pequeno, 2 motores</span></div>
+        <p class="hint">O motor usa a fonte dele (pilhas, 6–12 V) e o GND fica em comum com o ESP32. Use PWM de ~20 kHz para não zumbir.</p>
+      </div>
+      <div class="sim" data-sim="ponteh">
+        <div class="sim-head"><span class="sim-title">Ponte H</span>
+          <div class="seg" data-seg="m"><button data-v="frente" aria-pressed="true">Frente</button><button data-v="re" aria-pressed="false">Ré</button><button data-v="freio" aria-pressed="false">Freio</button><button data-v="solto" aria-pressed="false">Solto</button><button data-v="curto" aria-pressed="false">S1+S2 ✗</button></div></div>
+        <svg class="stage" viewBox="0 0 430 260" role="img" aria-label="Ponte H com quatro chaves, o motor no meio e o caminho da corrente destacado" style="max-height:270px"></svg>
+        <div class="ctl"><label for="phV">Velocidade (duty do PWM em EN)</label><output data-o="vv"></output><input id="phV" type="range" min="0" max="100" step="5" value="60" data-in="v"></div>
+        <div class="stats four">
+          <div class="stat"><span>IN1</span><b data-o="in1">–</b></div>
+          <div class="stat"><span>IN2</span><b data-o="in2">–</b></div>
+          <div class="stat orange"><span>EN</span><b data-o="en">–</b></div>
+          <div class="stat blue"><span>rotação</span><b data-o="rpm">–</b></div>
+        </div>
+        <p class="step-caption" data-o="cap"></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 14. MOTOR DE PASSO ============ -->
+<section class="slide" data-title="Motor de passo: posição contando passos" data-section="Atuadores">
+  <div class="wrap">
+    <p class="kicker blue">Atuadores · Motor de passo</p>
+    <h2>Motor de passo: posição exata, contando passos</h2>
+    <div class="grid-2 wide-right">
+      <div class="stack" style="gap:12px">
+        <p class="def blue">Em vez de girar livre, o motor de passo anda em <b>passos de tamanho fixo</b>. Ligando as bobinas em sequência, o ímã do rotor é puxado de uma para a outra. Um motor comum tem <b>200 passos por volta</b> (1,8° cada).</p>
+        <ul class="bullets small blue">
+          <li><b>Sem sensor</b>: a posição é conhecida contando os passos enviados (malha aberta).</li>
+          <li>Parado com a bobina ligada, ele <b>segura</b> a posição com força.</li>
+          <li>Se a carga for pesada demais, ele <b>perde passos</b> e não sabe disso.</li>
+        </ul>
+        <div class="cards two">
+          <div class="card tight"><h3 style="color:var(--yellow)">28BYJ‑48 + ULN2003</h3><p>Barato, 5 V, com redução: ~2048 passos por volta. O ESP32 liga as 4 bobinas uma a uma.</p></div>
+          <div class="card tight"><h3 style="color:var(--yellow)">NEMA 17 + A4988</h3><p>Forte, de impressora 3D. O driver só pede <b>2 sinais</b>: STEP (um pulso = um passo) e DIR (sentido).</p></div>
+        </div>
+        <p class="hint">Usos: impressora 3D, CNC, plotter, trilho de câmera, dosador.</p>
+      </div>
+      <div class="sim" data-sim="passo">
+        <div class="sim-head"><span class="sim-title">Uma bobina por vez</span>
+          <div class="seg" data-seg="dir"><button data-v="1" aria-pressed="true">Horário</button><button data-v="-1" aria-pressed="false">Anti‑horário</button></div></div>
+        <div class="grid-2 even" style="gap:12px;align-items:center">
+          <svg class="stage" viewBox="0 0 240 240" role="img" aria-label="Motor de passo simplificado com quatro bobinas e o rotor apontando para a bobina ligada" style="max-height:250px"></svg>
+          <table class="cmp sm">
+            <thead><tr><th>passo</th><th>A</th><th>B</th><th>A’</th><th>B’</th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td class="on1">1</td><td class="on0">0</td><td class="on0">0</td><td class="on0">0</td></tr>
+              <tr><td>2</td><td class="on0">0</td><td class="on1">1</td><td class="on0">0</td><td class="on0">0</td></tr>
+              <tr><td>3</td><td class="on0">0</td><td class="on0">0</td><td class="on1">1</td><td class="on0">0</td></tr>
+              <tr><td>4</td><td class="on0">0</td><td class="on0">0</td><td class="on0">0</td><td class="on1">1</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="ctl"><label for="psS">Velocidade</label><output data-o="sv"></output><input id="psS" type="range" min="1" max="12" step="1" value="3" data-in="s"></div>
+        <div class="btn-row"><button class="btn sm" data-act="step">1 passo ▶</button><button class="btn ghost sm" data-act="run" aria-pressed="false">Girar</button><button class="btn ghost sm" data-act="zero">Zerar</button><span class="pill" data-o="cnt"></span></div>
+        <p class="step-caption" data-o="cap"></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 15. OUTROS ATUADORES ============ -->
+<section class="slide" data-title="Outros atuadores relevantes" data-section="Atuadores">
+  <div class="wrap">
+    <p class="kicker blue">Atuadores</p>
+    <h2>Outros atuadores que aparecem nos projetos</h2>
+    <table class="cmp">
+      <thead><tr><th>Atuador</th><th>O que faz</th><th>Sinal do ESP32</th><th>Precisa de</th><th>Exemplo de uso</th></tr></thead>
+      <tbody>
+        <tr><td>Relé</td><td class="n">liga e desliga um circuito isolado</td><td class="n">digital</td><td class="n">módulo relé (transistor + diodo)</td><td class="n">lâmpada, bomba de 127 V</td></tr>
+        <tr><td>Solenoide / trava</td><td class="n">empurra um pino de metal quando energizado</td><td class="n">digital</td><td class="n">MOSFET + diodo, fonte 12 V</td><td class="n">fechadura elétrica, dispensador</td></tr>
+        <tr><td>Válvula solenoide</td><td class="n">abre ou fecha a passagem de água ou ar</td><td class="n">digital</td><td class="n">MOSFET ou relé + diodo</td><td class="n">irrigação automática</td></tr>
+        <tr><td>Mini bomba d’água</td><td class="n">motor DC que empurra líquido</td><td class="n">digital ou PWM</td><td class="n">MOSFET + diodo</td><td class="n">regar plantas, aquário</td></tr>
+        <tr><td>Ventoinha (cooler)</td><td class="n">move ar; com PWM, controla a rotação</td><td class="n">PWM</td><td class="n">MOSFET (2 fios) ou sinal direto (4 fios)</td><td class="n">resfriar caixa, estufa</td></tr>
+        <tr><td>Motor de vibração</td><td class="n">massa desbalanceada que faz tremer</td><td class="n">digital ou PWM</td><td class="n">transistor + diodo</td><td class="n">aviso em pulseira, celular</td></tr>
+        <tr><td>Fita de LED 12 V</td><td class="n">muitos LEDs de uma só cor</td><td class="n">PWM</td><td class="n">MOSFET de nível lógico</td><td class="n">iluminação dimerizável</td></tr>
+        <tr><td>Fita endereçável (WS2812)</td><td class="n">cada LED com cor própria</td><td class="n">mensagem num fio</td><td class="n">fonte de 5 V forte</td><td class="n">painéis, efeitos de luz</td></tr>
+      </tbody>
+    </table>
+    <div class="note">Três perguntas para qualquer atuador novo: <b>quanta energia</b> ele pede (tensão e corrente)? <b>Que sinal</b> ele entende (liga/desliga, PWM, pulso, mensagem)? <b>É uma bobina</b> (precisa de diodo)?</div>
+  </div>
+</section>
+
+<!-- ============ 16. QUIZ 2 ============ -->
+<section class="slide quiz" data-title="Quiz formativo 2: PWM e motores" data-section="Quiz formativo">
+  <div class="wrap">
+    <p class="kicker">Quiz formativo · 2 de 3</p>
+    <h2>PWM e motores</h2>
+    <div class="qz-list">
+      <div class="qz" data-q="f2_1">
+        <p class="qz-q"><span class="qn">1</span><span>Um pino de 3,3 V gera PWM de 1 kHz com duty de 25%. Qual a tensão média que o LED “sente”?</span></p>
+        <div class="qz-opts" role="group" aria-label="Alternativas da pergunta 1">
+          <button type="button" class="opt" data-v="a"><span class="letter">A</span><p>3,3 V, porque o pulso chega a 3,3 V</p></button>
+          <button type="button" class="opt" data-v="b" data-ok><span class="letter">B</span><p>Cerca de 0,8 V</p></button>
+          <button type="button" class="opt" data-v="c"><span class="letter">C</span><p>2,5 V</p></button>
+          <button type="button" class="opt" data-v="d"><span class="letter">D</span><p>Depende só da frequência</p></button>
+        </div>
+        <p class="qz-exp"><span class="qz-verdict"></span> Média = duty × tensão = 0,25 × 3,3 V ≈ <b>0,83 V</b>. O pulso chega a 3,3 V, mas só 25% do tempo. A frequência não muda a média; muda só se o pisca é visível ou audível.</p>
+      </div>
+      <div class="qz" data-q="f2_2">
+        <p class="qz-q"><span class="qn">2</span><span>Um servo recebe um pulso de 1,5 ms a cada 20 ms. Onde ele fica?</span></p>
+        <div class="qz-opts" role="group" aria-label="Alternativas da pergunta 2">
+          <button type="button" class="opt" data-v="a"><span class="letter">A</span><p>Gira sem parar, devagar</p></button>
+          <button type="button" class="opt" data-v="b"><span class="letter">B</span><p>Em 0°</p></button>
+          <button type="button" class="opt" data-v="c" data-ok><span class="letter">C</span><p>No meio, em 90°</p></button>
+          <button type="button" class="opt" data-v="d"><span class="letter">D</span><p>Em 180°</p></button>
+        </div>
+        <p class="qz-exp"><span class="qz-verdict"></span> No servo, o que conta é a <b>largura</b> do pulso: 1 ms ≈ 0°, <b>1,5 ms ≈ 90°</b>, 2 ms ≈ 180°. Ele vai até o ângulo e fica lá, segurando. Girar sem parar só os servos de rotação contínua.</p>
+      </div>
+      <div class="qz" data-q="f2_3">
+        <p class="qz-q"><span class="qn">3</span><span>Um carrinho precisa andar para a frente e para trás, com velocidade ajustável. O que vai entre o ESP32 e o motor DC?</span></p>
+        <div class="qz-opts" role="group" aria-label="Alternativas da pergunta 3">
+          <button type="button" class="opt" data-v="a"><span class="letter">A</span><p>Um relé, ligando e desligando</p></button>
+          <button type="button" class="opt" data-v="b" data-ok><span class="letter">B</span><p>Uma ponte H, com PWM na habilitação</p></button>
+          <button type="button" class="opt" data-v="c"><span class="letter">C</span><p>O motor direto no pino, com PWM</p></button>
+          <button type="button" class="opt" data-v="d"><span class="letter">D</span><p>Um resistor em série</p></button>
+        </div>
+        <p class="qz-exp"><span class="qz-verdict"></span> A <b>ponte H</b> inverte a corrente no motor (IN1/IN2 escolhem o sentido) e o <b>PWM</b> em EN escolhe a velocidade. O pino sozinho não dá corrente nem inverte a polaridade; o relé não aguenta PWM.</p>
+      </div>
+      <div class="qz" data-q="f2_4">
+        <p class="qz-q"><span class="qn">4</span><span>Uma impressora 3D precisa mover o bico exatamente 10 mm, sem nenhum sensor de posição. Qual motor?</span></p>
+        <div class="qz-opts" role="group" aria-label="Alternativas da pergunta 4">
+          <button type="button" class="opt" data-v="a" data-ok><span class="letter">A</span><p>Motor de passo</p></button>
+          <button type="button" class="opt" data-v="b"><span class="letter">B</span><p>Motor DC com PWM</p></button>
+          <button type="button" class="opt" data-v="c"><span class="letter">C</span><p>Motor de vibração</p></button>
+          <button type="button" class="opt" data-v="d"><span class="letter">D</span><p>Solenoide</p></button>
+        </div>
+        <p class="qz-exp"><span class="qz-verdict"></span> O <b>motor de passo</b> anda um ângulo fixo a cada pulso: basta contar os passos para saber a posição. O motor DC gira livre, e sem sensor não dá para saber quanto andou.</p>
+      </div>
+    </div>
+    <p class="qz-status" aria-live="polite"></p>
+  </div>
+</section>
+
+<!-- ============ 17. DISPLAYS: PANORAMA ============ -->
+<section class="slide" data-title="Displays: qual escolher" data-section="Displays">
+  <div class="wrap">
+    <p class="kicker" style="color:var(--yellow)">Displays</p>
+    <h2>Displays: do número à imagem</h2>
+    <table class="cmp">
+      <thead><tr><th>Display</th><th>Mostra</th><th>Como funciona</th><th>Ligação típica</th><th>Uso</th></tr></thead>
+      <tbody>
+        <tr><td>7 segmentos</td><td class="n">números (e poucas letras)</td><td class="n">7 LEDs em forma de “8”</td><td class="n">1 pino por segmento, ou módulo TM1637 (2 fios)</td><td class="n">relógio, placar, balança</td></tr>
+        <tr><td>Matriz de LED 8×8</td><td class="n">símbolos, texto rolando</td><td class="n">64 LEDs em linhas e colunas</td><td class="n">módulo MAX7219 (SPI)</td><td class="n">letreiro, ícones</td></tr>
+        <tr><td>LCD 16×2</td><td class="n">2 linhas de 16 caracteres</td><td class="n">cristal líquido na frente de uma luz de fundo; o controlador tem as letras prontas</td><td class="n">módulo <b>I²C</b> (PCF8574): 2 fios</td><td class="n">painel de leitura simples</td></tr>
+        <tr><td>OLED 0,96″ 128×64</td><td class="n">texto, gráficos, ícones</td><td class="n">cada pixel acende sozinho; sem luz de fundo</td><td class="n"><b>I²C</b> (SSD1306): 2 fios</td><td class="n">menus, gráficos pequenos</td></tr>
+        <tr><td>TFT colorido 240×320</td><td class="n">imagens coloridas, interface</td><td class="n">LCD colorido com luz de fundo</td><td class="n">SPI (ILI9341, ST7789)</td><td class="n">tela de toque, painéis</td></tr>
+        <tr><td>E‑paper</td><td class="n">texto e imagem, lento</td><td class="n">tinta eletrônica: a imagem fica sem energia</td><td class="n">SPI</td><td class="n">etiqueta de preço, crachá</td></tr>
+      </tbody>
+    </table>
+    <div class="note">Quanto mais pixels e cores, mais bytes a mandar por tela. Por isso os displays pequenos usam <b>I²C</b> (2 fios, mais lento) e os coloridos usam <b>SPI</b> (mais fios, bem mais rápido).</div>
+  </div>
+</section>
+
+<!-- ============ 18. 7 SEGMENTOS ============ -->
+<section class="slide" data-title="Display de 7 segmentos: um byte por dígito" data-section="Displays">
+  <div class="wrap">
+    <p class="kicker" style="color:var(--yellow)">Displays · 7 segmentos</p>
+    <h2>7 segmentos: um byte desenha um dígito</h2>
+    <div class="grid-2 wide-right">
+      <div class="stack" style="gap:12px">
+        <p class="def">São <b>7 LEDs compridos</b> (a até g) mais o ponto (dp). Acendendo a combinação certa, aparece cada número. Como são 8 LEDs, um <b>byte</b> descreve o dígito inteiro: cada bit liga um segmento.</p>
+        <ul class="bullets small">
+          <li><b>Cátodo comum</b>: segmento acende com 1. <b>Ânodo comum</b>: acende com 0.</li>
+          <li>Cada segmento é um LED: precisa de resistor.</li>
+          <li>Com 4 dígitos, seriam 32 pinos. A <b>multiplexação</b> acende um dígito por vez, tão rápido que o olho vê os quatro juntos.</li>
+          <li>Módulos como o <b>TM1637</b> fazem a multiplexação sozinhos: o ESP32 só manda os bytes, por 2 fios.</li>
+        </ul>
+      </div>
+      <div class="sim" data-sim="seg7">
+        <div class="sim-head"><span class="sim-title">Um dígito · 8 bits</span><label class="chk"><input type="checkbox" data-in="anodo"> ânodo comum</label></div>
+        <div class="grid-2 even" style="gap:14px;align-items:center">
+          <svg class="stage" viewBox="0 0 200 280" role="img" aria-label="Display de 7 segmentos; clique nos segmentos para acender e apagar" style="max-height:260px"></svg>
+          <div class="stack" style="gap:10px">
+            <div class="bitrow" data-o="bits"></div>
+            <div class="b1" data-o="hex"></div>
+            <span class="hint">Clique nos segmentos para acender e apagar, ou escolha um dígito.</span>
+          </div>
+        </div>
+        <div class="btn-row" data-o="digs"></div>
+        <p class="step-caption" data-o="cap"></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 19. I2C NOS DISPLAYS ============ -->
+<section class="slide" data-title="Display I²C: 2 fios e um endereço" data-section="Displays">
+  <div class="wrap">
+    <p class="kicker" style="color:var(--yellow)">Displays · I²C</p>
+    <h2>Display I²C: dois fios, cada um com seu endereço</h2>
+    <div class="grid-2 even">
+      <div class="stack" style="gap:12px">
+        <p class="def">Você já viu o I²C nos protocolos com fio: <b>SDA</b> (dados) e <b>SCL</b> (relógio), compartilhados por vários aparelhos. O ESP32 chama cada um pelo <b>endereço</b>. É por isso que um display, um sensor e outro display cabem nos mesmos 2 fios.</p>
+        <div class="stack" style="gap:6px">
+          <span class="fields-cap">Uma escrita no barramento I²C</span>
+          <div class="fields">
+            <div class="f o" style="--w:.7"><b>início</b><small>START</small></div>
+            <div class="f y" style="--w:1.4"><b>endereço</b><small>7 bits + escrita</small></div>
+            <div class="f g" style="--w:.6"><b>ACK</b><small>“é comigo”</small></div>
+            <div class="f m" style="--w:1.2"><b>dados</b><small>8 bits</small></div>
+            <div class="f g" style="--w:.6"><b>ACK</b><small>recebi</small></div>
+            <div class="f o" style="--w:.7"><b>fim</b><small>STOP</small></div>
+          </div>
+        </div>
+        <table class="cmp sm">
+          <thead><tr><th>Módulo</th><th>Endereço comum</th></tr></thead>
+          <tbody>
+            <tr><td>LCD com PCF8574</td><td class="n"><code>0x27</code> (ou <code>0x3F</code> na versão PCF8574A)</td></tr>
+            <tr><td>OLED SSD1306</td><td class="n"><code>0x3C</code> (às vezes <code>0x3D</code>)</td></tr>
+            <tr><td>Sensor BME280</td><td class="n"><code>0x76</code> ou <code>0x77</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <figure class="stack" style="gap:10px;margin:0">
+        <svg viewBox="0 0 560 220" role="img" aria-label="ESP32 com os fios SDA e SCL ligados a um LCD em 0x27, um OLED em 0x3C e um sensor em 0x76" style="width:100%">
+          <g font-family="IBM Plex Mono, monospace" font-size="12">
+            <rect x="8" y="30" width="110" height="84" rx="10" style="fill:var(--plot);stroke:var(--mint)" stroke-width="2"/>
+            <text x="63" y="56" text-anchor="middle" style="fill:var(--mint)" font-weight="700">ESP32</text>
+            <text x="63" y="78" text-anchor="middle" style="fill:var(--blue)" font-size="11">SDA · GPIO 21</text>
+            <text x="63" y="98" text-anchor="middle" style="fill:var(--orange)" font-size="11">SCL · GPIO 22</text>
+            <path d="M118 74 H548" style="stroke:var(--blue)" stroke-width="3"/>
+            <path d="M118 94 H548" style="stroke:var(--orange)" stroke-width="3"/>
+            <text x="548" y="66" text-anchor="end" style="fill:var(--blue)" font-size="11">SDA</text>
+            <text x="548" y="110" text-anchor="end" style="fill:var(--orange)" font-size="11">SCL</text>
+            <g style="stroke:var(--blue)" stroke-width="2.5"><path d="M190 74 V150 M330 74 V150 M470 74 V150"/></g>
+            <g style="stroke:var(--orange)" stroke-width="2.5"><path d="M206 94 V150 M346 94 V150 M486 94 V150"/></g>
+            <g style="fill:var(--blue)"><circle cx="190" cy="74" r="4"/><circle cx="330" cy="74" r="4"/><circle cx="470" cy="74" r="4"/></g>
+            <g style="fill:var(--orange)"><circle cx="206" cy="94" r="4"/><circle cx="346" cy="94" r="4"/><circle cx="486" cy="94" r="4"/></g>
+            <rect x="148" y="150" width="100" height="56" rx="9" style="fill:var(--plot);stroke:var(--yellow)" stroke-width="2"/>
+            <text x="198" y="173" text-anchor="middle" style="fill:var(--yellow)" font-weight="700">LCD 16×2</text>
+            <text x="198" y="193" text-anchor="middle" style="fill:var(--text-2)">0x27</text>
+            <rect x="288" y="150" width="100" height="56" rx="9" style="fill:var(--plot);stroke:var(--yellow)" stroke-width="2"/>
+            <text x="338" y="173" text-anchor="middle" style="fill:var(--yellow)" font-weight="700">OLED</text>
+            <text x="338" y="193" text-anchor="middle" style="fill:var(--text-2)">0x3C</text>
+            <rect x="428" y="150" width="100" height="56" rx="9" style="fill:var(--plot);stroke:var(--wire)" stroke-width="2"/>
+            <text x="478" y="173" text-anchor="middle" style="fill:var(--text-2)" font-weight="700">sensor</text>
+            <text x="478" y="193" text-anchor="middle" style="fill:var(--text-2)">0x76</text>
+            <text x="300" y="22" text-anchor="middle" style="fill:var(--muted)" font-size="11">os mesmos 2 fios para todos (mais 3,3 V/5 V e GND)</text>
+          </g>
+        </svg>
+        <div class="note">Primeiro teste com qualquer display I²C: rodar um <b>scanner I²C</b>, que tenta todos os endereços e lista quem respondeu “ACK”. Se nada aparece, o problema é fio, alimentação ou SDA/SCL trocados; não é o código do display.</div>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 20. LCD 16x2 ============ -->
+<section class="slide" data-title="LCD 16×2 com módulo I²C" data-section="Displays">
+  <div class="wrap">
+    <p class="kicker" style="color:var(--yellow)">Displays · LCD 16×2</p>
+    <h2>LCD 16×2: o ESP32 manda códigos, não pixels</h2>
+    <div class="grid-2 wide-right">
+      <div class="stack" style="gap:12px">
+        <p class="def">O cristal líquido funciona como uma persiana: deixa passar ou bloqueia a <b>luz de fundo</b>. O controlador do LCD (HD44780) já tem as letras desenhadas numa tabela. O ESP32 só diz <b>onde</b> (coluna e linha) e <b>qual código</b> (ASCII): <code>A</code> = 0x41.</p>
+        <ol class="how">
+          <li><code>lcd.setCursor(coluna, linha)</code>: coluna 0–15, linha 0–1.</li>
+          <li><code>lcd.print("Temp: 24.5")</code>: cada letra vira um código.</li>
+          <li>O módulo <b>I²C</b> (PCF8574) recebe os bytes e os repassa ao LCD em duas metades de 4 bits, com um pulso no pino EN para cada metade.</li>
+        </ol>
+        <ul class="bullets small">
+          <li><b>Tela acesa, mas sem letras?</b> Gire o <b>potenciômetro azul</b> atrás do módulo: é o contraste.</li>
+          <li>Acentos não existem na tabela. Para °, use o código <code>0xDF</code>; para desenhos próprios, <code>createChar</code> guarda até 8 caracteres de 5×8 pixels.</li>
+        </ul>
+      </div>
+      <div class="sim" data-sim="lcd">
+        <div class="sim-head"><span class="sim-title">LCD 16×2 · módulo I²C em 0x27</span><button class="btn ghost sm" data-act="bl" aria-pressed="true">Luz de fundo</button></div>
+        <div class="lcd"><div class="scr" data-o="scr"></div><div class="cap"><span>coluna 0</span><span>coluna 15</span></div></div>
+        <div class="lcd-in">
+          <label>linha 0<input type="text" class="tin" data-in="l0" maxlength="24" value="Temp: 24.5°C" spellcheck="false" autocomplete="off"></label>
+          <label>linha 1<input type="text" class="tin" data-in="l1" maxlength="24" value="Umidade: 61%" spellcheck="false" autocomplete="off"></label>
+        </div>
+        <div class="btn-row"><span class="pill" data-o="st"></span><span class="hint">clique numa letra da tela para ver o código e os bytes</span></div>
+        <div data-o="info"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 21. OLED ============ -->
+<section class="slide" data-title="OLED 128×64: cada byte, 8 pixels" data-section="Displays">
+  <div class="wrap">
+    <p class="kicker" style="color:var(--yellow)">Displays · OLED</p>
+    <h2>OLED 128×64: cada byte acende 8 pixels</h2>
+    <div class="grid-2 wide-right">
+      <div class="stack" style="gap:12px">
+        <p class="def">No OLED cada pixel é um LED orgânico que <b>acende sozinho</b>: sem luz de fundo, o preto é apagado de verdade. Gasta pouco e tem ótimo contraste. Diferente do LCD, aqui o ESP32 manda <b>pixels</b>, então dá para desenhar qualquer coisa.</p>
+        <div class="stack" style="gap:6px">
+          <span class="fields-cap">A memória da tela (SSD1306)</span>
+          <div class="fields">
+            <div class="f y"><b>128 colunas</b><small>× 64 linhas de pixels</small></div>
+            <div class="f o"><b>8 páginas</b><small>faixas de 8 linhas</small></div>
+            <div class="f m"><b>1 byte</b><small>= 8 pixels em pé</small></div>
+            <div class="f b"><b>1024 bytes</b><small>a tela inteira</small></div>
+          </div>
+        </div>
+        <ul class="bullets small">
+          <li>A biblioteca desenha numa <b>cópia da tela</b> na memória do ESP32 (o <i>framebuffer</i>). Nada aparece até chamar <code>display.display()</code>, que envia os 1024 bytes.</li>
+          <li>Pelo I²C a 400 kHz, uma tela inteira leva ~25 ms: dá umas 40 telas por segundo.</li>
+          <li>Esquecer o <code>display()</code> é o erro mais comum: o código “desenha”, mas a tela fica igual.</li>
+        </ul>
+      </div>
+      <div class="sim" data-sim="oled">
+        <div class="sim-head"><span class="sim-title">Um pedaço de uma página · 16 × 8 pixels</span>
+          <div class="btn-row"><button class="btn ghost sm" data-act="heart">♥</button><button class="btn ghost sm" data-act="arrow">seta</button><button class="btn ghost sm" data-act="txt">“OH”</button><button class="btn ghost sm" data-act="clear">limpar</button></div></div>
+        <div class="oled" data-o="grid" role="group" aria-label="Grade de pixels do OLED; clique para acender e apagar"></div>
+        <span class="hint">um byte por coluna (pixel de cima = bit 0)</span>
+        <div class="oled-bytes" data-o="bytes"></div>
+        <p class="step-caption" data-o="cap"></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 22. QUIZ 3 ============ -->
+<section class="slide quiz" data-title="Quiz formativo 3: displays" data-section="Quiz formativo">
+  <div class="wrap">
+    <p class="kicker">Quiz formativo · 3 de 3</p>
+    <h2>Displays</h2>
+    <div class="qz-list">
+      <div class="qz" data-q="f3_1">
+        <p class="qz-q"><span class="qn">1</span><span>O LCD 16×2 com módulo I²C acende a luz de fundo, o scanner encontra o endereço 0x27, mas nenhuma letra aparece. O que tentar primeiro?</span></p>
+        <div class="qz-opts" role="group" aria-label="Alternativas da pergunta 1">
+          <button type="button" class="opt" data-v="a"><span class="letter">A</span><p>Trocar SDA e SCL</p></button>
+          <button type="button" class="opt" data-v="b"><span class="letter">B</span><p>Mudar o endereço no código para 0x3C</p></button>
+          <button type="button" class="opt" data-v="c" data-ok><span class="letter">C</span><p>Ajustar o contraste no potenciômetro do módulo</p></button>
+          <button type="button" class="opt" data-v="d"><span class="letter">D</span><p>Ligar o LCD num pino PWM</p></button>
+        </div>
+        <p class="qz-exp"><span class="qz-verdict"></span> Se o scanner achou <b>0x27</b>, os fios e o endereço estão certos (com SDA/SCL trocados ninguém responderia). Luz acesa e tela vazia é o sintoma clássico de <b>contraste</b> desajustado: gire o potenciômetro azul.</p>
+      </div>
+      <div class="qz" data-q="f3_2">
+        <p class="qz-q"><span class="qn">2</span><span>Um OLED monocromático de 128×64 pixels guarda 1 bit por pixel. Quantos bytes tem a tela inteira?</span></p>
+        <div class="qz-opts" role="group" aria-label="Alternativas da pergunta 2">
+          <button type="button" class="opt" data-v="a"><span class="letter">A</span><p>192</p></button>
+          <button type="button" class="opt" data-v="b" data-ok><span class="letter">B</span><p>1024</p></button>
+          <button type="button" class="opt" data-v="c"><span class="letter">C</span><p>8192</p></button>
+          <button type="button" class="opt" data-v="d"><span class="letter">D</span><p>32 (2 linhas de 16)</p></button>
+        </div>
+        <p class="qz-exp"><span class="qz-verdict"></span> 128 × 64 = 8192 pixels = 8192 bits. Com 8 bits por byte: 8192 ÷ 8 = <b>1024 bytes</b> (8 páginas de 128 colunas). 32 é o LCD 16×2, que guarda caracteres, não pixels.</p>
+      </div>
+      <div class="qz" data-q="f3_3">
+        <p class="qz-q"><span class="qn">3</span><span>Num display de 7 segmentos de cátodo comum, com o byte na ordem <code>dp g f e d c b a</code>, qual byte mostra o número 7 (segmentos a, b e c)?</span></p>
+        <div class="qz-opts" role="group" aria-label="Alternativas da pergunta 3">
+          <button type="button" class="opt" data-v="a"><span class="letter">A</span><p><code>0x70</code></p></button>
+          <button type="button" class="opt" data-v="b"><span class="letter">B</span><p><code>0x7F</code></p></button>
+          <button type="button" class="opt" data-v="c" data-ok><span class="letter">C</span><p><code>0x07</code></p></button>
+          <button type="button" class="opt" data-v="d"><span class="letter">D</span><p><code>0xF8</code></p></button>
+        </div>
+        <p class="qz-exp"><span class="qz-verdict"></span> a, b e c são os bits 0, 1 e 2: <code>0000 0111</code> = <b>0x07</b>. O 0x7F acende tudo menos o ponto (é o “8”), e o 0xF8 seria o 7 num display de <b>ânodo</b> comum, com os bits invertidos.</p>
+      </div>
+    </div>
+    <p class="qz-status" aria-live="polite"></p>
+  </div>
+</section>
+
+<!-- ============ 23. QUAL SAÍDA USAR ============ -->
+<section class="slide" data-title="Qual saída usar" data-section="Síntese">
+  <div class="wrap">
+    <p class="kicker">Comparando</p>
+    <h2>Qual saída usar</h2>
+    <table class="cmp sm">
+      <thead><tr><th>Eu quero…</th><th>Dispositivo</th><th>Sinal do pino</th><th>No meio</th></tr></thead>
+      <tbody>
+        <tr><td>avisar “ligado”</td><td class="n">LED</td><td class="n">digital</td><td class="n">resistor</td></tr>
+        <tr><td>chamar atenção</td><td class="n">buzzer ativo / passivo</td><td class="n">digital / <code>tone</code></td><td class="n">transistor, se for alto</td></tr>
+        <tr><td>regular o brilho</td><td class="n">LED, fita de LED</td><td class="n">PWM 1–5 kHz</td><td class="n">MOSFET para a fita 12 V</td></tr>
+        <tr><td>escolher uma cor</td><td class="n">LED RGB / WS2812</td><td class="n">3 PWMs / mensagem</td><td class="n">resistores / fonte 5 V</td></tr>
+        <tr><td>posicionar um braço</td><td class="n">servo</td><td class="n">pulso 1–2 ms a 50 Hz</td><td class="n">fonte 5 V separada</td></tr>
+        <tr><td>girar com velocidade e sentido</td><td class="n">motor DC</td><td class="n">PWM + 2 pinos</td><td class="n">ponte H</td></tr>
+        <tr><td>mover uma posição exata</td><td class="n">motor de passo</td><td class="n">sequência / STEP + DIR</td><td class="n">ULN2003 / A4988</td></tr>
+        <tr><td>ligar algo da tomada</td><td class="n">relé</td><td class="n">digital</td><td class="n">módulo relé</td></tr>
+        <tr><td>mostrar um número</td><td class="n">7 segmentos</td><td class="n">1 bit por segmento</td><td class="n">TM1637 / resistores</td></tr>
+        <tr><td>mostrar texto / gráficos</td><td class="n">LCD 16×2 / OLED</td><td class="n">mensagens I²C</td><td class="n">módulo PCF8574 / SSD1306</td></tr>
+      </tbody>
+    </table>
+    <div class="note">Para escolher, três perguntas: <b>que ação</b> (luz, som, movimento, informação)? <b>Que sinal</b> o dispositivo entende? <b>Quanta energia</b> ele pede, e portanto o que vai entre o pino e ele?</div>
+  </div>
+</section>
+
+<!-- ============ 24. SÍNTESE ============ -->
+<section class="slide" data-title="Síntese: saídas e atuadores" data-section="Síntese">
+  <div class="wrap">
+    <p class="kicker">Síntese</p>
+    <h2>O que levar desta aula</h2>
+    <div class="check">
+      <div class="card mint"><h3>Liga e desliga</h3><ul>
+        <li>O pino é <b>sinal</b>: 3,3 V e ~20 mA</li>
+        <li>LED: resistor = (3,3 − V<sub>f</sub>) ÷ corrente</li>
+        <li>Carga maior: transistor, MOSFET ou relé, com GND comum</li>
+        <li>Bobinas pedem diodo de proteção</li>
+        <li>Buzzer ativo: HIGH; passivo: frequência = nota</li></ul></div>
+      <div class="card orange"><h3>PWM</h3><ul>
+        <li>Liga‑desliga rápido; média = duty × 3,3 V</li>
+        <li>Frequência, duty e resolução</li>
+        <li>LED 1–5 kHz · motor ~20 kHz · servo 50 Hz</li>
+        <li>RGB: um PWM por cor</li></ul></div>
+      <div class="card blue"><h3>Atuadores</h3><ul>
+        <li><b>Servo</b>: largura do pulso = ângulo (malha fechada)</li>
+        <li><b>Motor DC</b>: ponte H para o sentido, PWM para a velocidade</li>
+        <li><b>Passo</b>: posição exata contando passos</li>
+        <li>Relé, solenoide, bomba, ventoinha: mesmo raciocínio</li></ul></div>
+      <div class="card"><h3 style="color:var(--yellow)">Displays</h3><ul>
+        <li><b>7 segmentos</b>: um byte por dígito</li>
+        <li><b>I²C</b>: 2 fios, cada display com endereço</li>
+        <li><b>LCD</b>: manda códigos de caractere; contraste no potenciômetro</li>
+        <li><b>OLED</b>: manda pixels; 1024 bytes; chame <code>display()</code></li></ul></div>
+    </div>
+    <div class="note">Para qualquer dispositivo de saída novo, faça as mesmas perguntas: <b>como ele funciona por dentro, que sinal ele entende, quanta energia ele pede e o que precisa ficar entre o pino e ele.</b></div>
+  </div>
+</section>
+
+<!-- ============ 25. GLOSSÁRIO ============ -->
+<section class="slide" data-title="Glossário: siglas e termos" data-section="Glossário">
+  <div class="wrap">
+    <p class="kicker">Glossário</p>
+    <h2>Siglas e termos da aula</h2>
+    <div class="sim" data-sim="glossario" style="gap:12px">
+      <div class="glos-tools">
+        <label class="sr-only" for="glBusca">Buscar no glossário</label>
+        <input id="glBusca" class="tin sm" type="text" placeholder="buscar: duty, ponte H, I²C…" data-in="q" spellcheck="false" autocomplete="off">
+        <div class="btn-row"><button type="button" class="btn ghost sm" data-gcat="" aria-pressed="true">Todos</button><button type="button" class="btn ghost sm" data-gcat="geral" aria-pressed="false">Geral</button><button type="button" class="btn ghost sm" data-gcat="saida" aria-pressed="false">LED, som e drivers</button><button type="button" class="btn ghost sm" data-gcat="pwm" aria-pressed="false">PWM</button><button type="button" class="btn ghost sm" data-gcat="motor" aria-pressed="false">Motores</button><button type="button" class="btn ghost sm" data-gcat="disp" aria-pressed="false">Displays</button></div>
+        <span class="pill info" data-o="n"></span>
+      </div>
+      <dl class="glos">
+      <div class="gl b" data-cat="motor"><dt>A4988 e DRV8825</dt><dd><span class="tag">Motores</span>Drivers de motor de passo. Pedem só dois sinais: <b>STEP</b> (cada pulso, um passo) e <b>DIR</b> (sentido). Fazem também micropasso.</dd></div>
+      <div class="gl g" data-cat="geral"><dt>Atuador</dt><dd><span class="tag">Geral</span>Dispositivo que transforma um sinal elétrico em ação física: luz, som, movimento, calor. É o contrário do sensor.</dd></div>
+      <div class="gl o" data-cat="saida"><dt>Ânodo e cátodo</dt><dd><span class="tag">LED, som e drivers</span>As duas pernas de um diodo ou LED. A corrente entra pelo <b>ânodo</b> (+, perna longa) e sai pelo <b>cátodo</b> (−, perna curta, lado chato).</dd></div>
+      <div class="gl m" data-cat="pwm"><dt>Ânodo comum e cátodo comum</dt><dd><span class="tag">PWM</span>Em LEDs RGB e displays de 7 segmentos, uma perna é compartilhada. <b>Cátodo comum</b>: a comum vai no GND e acende com 1. <b>Ânodo comum</b>: a comum vai no positivo e acende com 0.</dd></div>
+      <div class="gl o" data-cat="saida"><dt>Buzzer ativo</dt><dd><span class="tag">LED, som e drivers</span>Buzzer com oscilador interno: basta ligar (HIGH) que ele apita, sempre na mesma nota.</dd></div>
+      <div class="gl o" data-cat="saida"><dt>Buzzer passivo</dt><dd><span class="tag">LED, som e drivers</span>Buzzer sem oscilador: precisa receber uma onda na frequência da nota, com <code>tone(pino, freq)</code>. Toca melodias e sirenes.</dd></div>
+      <div class="gl y" data-cat="disp"><dt>Contraste</dt><dd><span class="tag">Displays</span>No LCD, ajuste feito no potenciômetro do módulo. Fora do ponto, a tela acende mas as letras não aparecem (ou aparecem só quadrados).</dd></div>
+      <div class="gl g" data-cat="geral"><dt>Corrente (mA)</dt><dd><span class="tag">Geral</span>Quanta carga elétrica passa por segundo, medida em ampères (A) ou miliampères (mA). Um LED usa ~10 mA; um motor pequeno, centenas de mA.</dd></div>
+      <div class="gl m" data-cat="pwm"><dt>DAC<em>Digital‑to‑Analog Converter</em></dt><dd><span class="tag">PWM</span>Conversor que gera uma tensão contínua de verdade a partir de um número. O ESP32 clássico tem 2 (GPIO 25 e 26), de 8 bits.</dd></div>
+      <div class="gl o" data-cat="saida"><dt>Diodo de proteção (flyback)</dt><dd><span class="tag">LED, som e drivers</span>Diodo em paralelo com uma bobina (motor, relé, solenoide). Absorve o pico de tensão que a bobina devolve ao ser desligada e protege o transistor.</dd></div>
+      <div class="gl o" data-cat="saida"><dt>Driver</dt><dd><span class="tag">LED, som e drivers</span>Circuito entre o pino e a carga: recebe o sinal fraco do ESP32 e controla a energia de uma fonte externa. Ex.: transistor, MOSFET, relé, ponte H.</dd></div>
+      <div class="gl m" data-cat="pwm"><dt>Duty cycle<em>ciclo de trabalho</em></dt><dd><span class="tag">PWM</span>Porcentagem do período em que o sinal PWM fica ligado. 25% de duty em 3,3 V dá média de 0,83 V.</dd></div>
+      <div class="gl y" data-cat="disp"><dt>Endereço I²C</dt><dd><span class="tag">Displays</span>Número de 7 bits que identifica cada aparelho no barramento. LCD com PCF8574: <code>0x27</code>; OLED SSD1306: <code>0x3C</code>.</dd></div>
+      <div class="gl y" data-cat="disp"><dt>Framebuffer</dt><dd><span class="tag">Displays</span>Cópia da tela na memória do ESP32. A biblioteca desenha nela e, ao chamar <code>display()</code>, envia tudo para o display.</dd></div>
+      <div class="gl m" data-cat="pwm"><dt>Frequência e período</dt><dd><span class="tag">PWM</span><b>Frequência</b>: quantas vezes por segundo o sinal se repete (Hz). <b>Período</b>: quanto dura cada repetição. T = 1/f: 1 kHz → 1 ms.</dd></div>
+      <div class="gl g" data-cat="geral"><dt>GND comum</dt><dd><span class="tag">Geral</span>Ligar o GND do ESP32 ao GND da fonte externa. Sem isso, o sinal do pino não tem referência e o driver não entende o comando.</dd></div>
+      <div class="gl g" data-cat="geral"><dt>GPIO<em>General Purpose Input/Output</em></dt><dd><span class="tag">Geral</span>Pino de uso geral do ESP32: pode ler (entrada) ou mandar (saída) 0 V ou 3,3 V. Aguenta ~20 mA com folga.</dd></div>
+      <div class="gl y" data-cat="disp"><dt>HD44780</dt><dd><span class="tag">Displays</span>O controlador dos LCDs de caractere. Tem as letras gravadas numa tabela (ROM): o ESP32 manda o código, não o desenho.</dd></div>
+      <div class="gl y" data-cat="disp"><dt>I²C<em>Inter‑Integrated Circuit</em></dt><dd><span class="tag">Displays</span>Barramento de 2 fios, <b>SDA</b> (dados) e <b>SCL</b> (relógio), compartilhado por vários aparelhos, cada um com seu endereço. No ESP32: GPIO 21 e 22.</dd></div>
+      <div class="gl y" data-cat="disp"><dt>LCD 16×2</dt><dd><span class="tag">Displays</span>Display de cristal líquido com 2 linhas de 16 caracteres e luz de fundo. Cada posição mostra um caractere de 5×8 pontos.</dd></div>
+      <div class="gl m" data-cat="pwm"><dt>LEDC</dt><dd><span class="tag">PWM</span>O periférico de PWM do ESP32 (“LED Control”), com 16 canais. Funções <code>ledcAttach(pino, freq, bits)</code> e <code>ledcWrite(pino, duty)</code>.</dd></div>
+      <div class="gl o" data-cat="saida"><dt>LED<em>Light‑Emitting Diode</em></dt><dd><span class="tag">LED, som e drivers</span>Diodo que emite luz quando a corrente passa do ânodo para o cátodo. Precisa de um resistor para limitar a corrente.</dd></div>
+      <div class="gl m" data-cat="pwm"><dt>LED RGB</dt><dd><span class="tag">PWM</span>Três LEDs (vermelho, verde, azul) num só encapsulamento. Com um PWM em cada, a mistura forma qualquer cor.</dd></div>
+      <div class="gl g" data-cat="geral"><dt>Lei de Ohm</dt><dd><span class="tag">Geral</span>Tensão = resistência × corrente (V = R × I). Daí vem o resistor do LED: R = (3,3 − V<sub>f</sub>) ÷ I.</dd></div>
+      <div class="gl b" data-cat="motor"><dt>Malha aberta e malha fechada</dt><dd><span class="tag">Motores</span><b>Fechada</b>: o sistema mede o resultado e corrige (o servo, com o potenciômetro). <b>Aberta</b>: manda o comando e confia (o motor de passo).</dd></div>
+      <div class="gl g" data-cat="geral"><dt>millis()</dt><dd><span class="tag">Geral</span>Função que diz há quantos milissegundos o ESP32 ligou. Usada para fazer padrões no tempo (piscar, bipar) sem travar o programa com <code>delay()</code>.</dd></div>
+      <div class="gl o" data-cat="saida"><dt>MOSFET</dt><dd><span class="tag">LED, som e drivers</span>Transistor que funciona como chave controlada por tensão. O de “nível lógico” liga totalmente com 3,3 V; bom para fitas de LED e motores.</dd></div>
+      <div class="gl b" data-cat="motor"><dt>Motor DC</dt><dd><span class="tag">Motores</span>Motor que gira enquanto recebe corrente. Inverter a polaridade inverte o sentido; a tensão média (PWM) muda a velocidade.</dd></div>
+      <div class="gl b" data-cat="motor"><dt>Motor de passo</dt><dd><span class="tag">Motores</span>Motor que anda em passos fixos (ex.: 200 por volta, 1,8° cada) ligando as bobinas em sequência. A posição é conhecida contando passos.</dd></div>
+      <div class="gl y" data-cat="disp"><dt>Multiplexação</dt><dd><span class="tag">Displays</span>Acender um dígito (ou linha) por vez, bem rápido, para o olho ver todos juntos. Economiza pinos.</dd></div>
+      <div class="gl y" data-cat="disp"><dt>OLED<em>Organic LED</em></dt><dd><span class="tag">Displays</span>Display em que cada pixel acende sozinho, sem luz de fundo. Preto de verdade, pouco consumo. O comum é 128×64, com controlador SSD1306.</dd></div>
+      <div class="gl y" data-cat="disp"><dt>Página (OLED)</dt><dd><span class="tag">Displays</span>Faixa de 8 linhas de pixels na memória do SSD1306. Cada byte é uma coluna de 8 pixels em pé; a tela de 64 linhas tem 8 páginas.</dd></div>
+      <div class="gl y" data-cat="disp"><dt>PCF8574</dt><dd><span class="tag">Displays</span>O chip do “módulo I²C” soldado atrás do LCD. Recebe bytes pelo I²C e os transforma em 8 saídas que comandam o LCD.</dd></div>
+      <div class="gl m" data-cat="pwm"><dt>Persistência da visão</dt><dd><span class="tag">PWM</span>O olho não acompanha mudanças rápidas: acima de ~100 Hz, um LED piscando parece aceso fixo, com o brilho da média.</dd></div>
+      <div class="gl b" data-cat="motor"><dt>Ponte H</dt><dd><span class="tag">Motores</span>Quatro chaves em volta do motor, formando um “H”. Fechando duas em diagonal, a corrente passa num sentido ou no outro. Ex.: L298N, TB6612, DRV8833.</dd></div>
+      <div class="gl m" data-cat="pwm"><dt>PWM<em>Pulse Width Modulation</em></dt><dd><span class="tag">PWM</span>Modulação por largura de pulso: ligar e desligar o pino muito rápido. Quem recebe reage à <b>média</b> (LED, motor) ou à <b>largura</b> do pulso (servo).</dd></div>
+      <div class="gl o" data-cat="saida"><dt>Relé</dt><dd><span class="tag">LED, som e drivers</span>Interruptor mecânico acionado por uma bobina. Contatos <b>COM</b>, <b>NA</b> (normalmente aberto) e <b>NF</b> (normalmente fechado). Isola o ESP32 da carga.</dd></div>
+      <div class="gl m" data-cat="pwm"><dt>Resolução (bits)</dt><dd><span class="tag">PWM</span>Quantos degraus de duty existem. 8 bits: 0 a 255. 10 bits: 0 a 1023. Quanto maior a frequência, menor a resolução possível.</dd></div>
+      <div class="gl o" data-cat="saida"><dt>Resistor limitador</dt><dd><span class="tag">LED, som e drivers</span>Resistor em série com o LED. Fica com a sobra de tensão e limita a corrente. Sem ele, o LED e o pino podem queimar.</dd></div>
+      <div class="gl b" data-cat="motor"><dt>Servomotor</dt><dd><span class="tag">Motores</span>Motor com engrenagens, potenciômetro e controle: vai para o ângulo pedido e segura. O ângulo vem da largura de um pulso a cada 20 ms (1–2 ms).</dd></div>
+      <div class="gl y" data-cat="disp"><dt>Sete segmentos</dt><dd><span class="tag">Displays</span>Display de 7 LEDs compridos (a–g) e um ponto, em forma de “8”. Um byte descreve o dígito.</dd></div>
+      <div class="gl b" data-cat="motor"><dt>Solenoide</dt><dd><span class="tag">Motores</span>Bobina que puxa ou empurra um pino de metal quando energizada. Usada em travas e válvulas. Precisa de driver e diodo.</dd></div>
+      <div class="gl y" data-cat="disp"><dt>SSD1306</dt><dd><span class="tag">Displays</span>Controlador dos OLEDs pequenos (128×64, 128×32). Guarda 1024 bytes de pixels e conversa por I²C (0x3C) ou SPI.</dd></div>
+      <div class="gl g" data-cat="geral"><dt>Tensão direta (V<sub>f</sub>)</dt><dd><span class="tag">Geral</span>Tensão que o LED “consome” quando acende. Depende da cor: ~2,0 V no vermelho, ~3,0 V no azul e no branco.</dd></div>
+      <div class="gl o" data-cat="saida"><dt>tone()</dt><dd><span class="tag">LED, som e drivers</span>Função que gera uma onda quadrada numa frequência: <code>tone(pino, 440)</code> toca um Lá no buzzer passivo; <code>noTone(pino)</code> para.</dd></div>
+      <div class="gl o" data-cat="saida"><dt>Transistor</dt><dd><span class="tag">LED, som e drivers</span>Chave eletrônica: uma corrente pequena na base (vinda do pino) controla uma corrente grande entre coletor e emissor.</dd></div>
+      <div class="gl b" data-cat="motor"><dt>ULN2003</dt><dd><span class="tag">Motores</span>Chip com 7 transistores, usado no módulo do motor de passo 28BYJ‑48: cada pino do ESP32 liga uma bobina.</dd></div>
+      <div class="gl m" data-cat="pwm"><dt>WS2812 (NeoPixel)</dt><dd><span class="tag">PWM</span>LED RGB endereçável: tem um chip dentro. A cor chega como mensagem de 24 bits (G, R, B) num único fio, e passa adiante para o próximo LED.</dd></div>
+      </dl>
+      <p class="hint" data-o="vazio" hidden>Nenhum termo encontrado.</p>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<dialog id="identDlg" class="ident" aria-labelledby="identTitle">
+  <form id="identForm" novalidate>
+    <h3 id="identTitle">Quem está respondendo?</h3>
+    <p class="hint">Suas respostas da aula ficam registradas com estes dados. Só o professor vê.</p>
+    <label>Nome completo<input class="input" name="nome" required autocomplete="name"></label>
+    <label>E-mail<input class="input" name="email" type="email" required autocomplete="email"></label>
+    <div class="grid-2 even" style="gap:10px">
+      <label>Turma<input class="input" name="turma" placeholder="ex.: T29"></label>
+      <label>Grupo<input class="input" name="grupo" placeholder="ex.: G3"></label>
+    </div>
+    <div class="btn-row" style="justify-content:flex-end"><button type="button" class="btn ghost" id="identCancel">Depois</button><button class="btn">Salvar</button></div>
+  </form>
+</dialog>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="js/config.js"></script>
+<script src="js/kit.js"></script>
+<script src="js/sims-saidas.js"></script>
+<script src="js/sims-atuadores.js"></script>
+<script src="js/sims-displays.js"></script>
+<script src="js/app.js"></script>
+<script src="js/participacao.js"></script>
+</body>
+</html>
